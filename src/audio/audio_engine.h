@@ -71,6 +71,7 @@ private:
     // Precalculated mixing gains
     float mix_dry_ = 1.0f;
     float mix_wet_ = 0.0f;
+    float mix_norm_ = 1.0f;
 };
 
 } // namespace pedal

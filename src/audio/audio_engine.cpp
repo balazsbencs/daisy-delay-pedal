@@ -79,6 +79,9 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
     const float angle = params.mix * 1.57079632679f; // pi/2
     mix_dry_          = cosf(angle);
     mix_wet_          = sinf(angle);
+    // Keep unity upper bound when dry/wet are strongly correlated.
+    const float gain_sum = mix_dry_ + mix_wet_;
+    mix_norm_            = (gain_sum > 1.0f) ? (1.0f / gain_sum) : 1.0f;
 
     if (mode != nullptr) {
         mode->Prepare(params);
@@ -96,8 +99,8 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
             // never need to know about the dry path.
             const StereoFrame wet = mode->Process(dry, params);
 
-            OUT_L[i] = dry * mix_dry_ + wet.left  * mix_wet_;
-            OUT_R[i] = dry * mix_dry_ + wet.right * mix_wet_;
+            OUT_L[i] = (dry * mix_dry_ + wet.left  * mix_wet_) * mix_norm_;
+            OUT_R[i] = (dry * mix_dry_ + wet.right * mix_wet_) * mix_norm_;
         }
     }
 }

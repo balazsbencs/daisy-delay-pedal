@@ -15,10 +15,11 @@ private:
 
 inline float Saturation::Process(float sample) const {
     float driven = sample * drive_;
-    // Soft clip via cubic approximation: (3x - x^3) / 2, clamped
+    // Soft clip via cubic approximation: x - x^3/3, clamped.
+    // This preserves unity small-signal gain in feedback loops.
     if (driven > 1.0f)  driven = 1.0f;
     if (driven < -1.0f) driven = -1.0f;
-    return driven * (3.0f - driven * driven) * 0.5f;
+    return driven * (3.0f - driven * driven) * (1.0f / 3.0f);
 }
 
 } // namespace pedal
