@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:electro-smith.github.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(git submodule:*)",
+      "Bash(xargs ls:*)",
+      "Bash(head:*)",
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(open:*)"
+    ]
+  }
+}

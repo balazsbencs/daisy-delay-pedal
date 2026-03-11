@@ -1,0 +1,130 @@
+  ================================================================================
+    BILL OF MATERIALS
+    Project  : Daisy Seed Delay Pedal
+    Revision : 1.0
+    Date     : 2026-03-11
+    PCB size : ~100 x 50 mm  (fits 1590BB enclosure)
+  ================================================================================
+
+  All components are through-hole (THT).
+  Tolerances: resistors 1%, capacitors 10% (ceramic) / 20% (electrolytic).
+
+  ────────────────────────────────────────────────────────────────────────────────
+    MODULES
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref    Qty  Value / Part                Description
+    -----  ---  --------------------------  ----------------------------------------
+    U1       1  Electrosmith Daisy Seed     STM32H750 Cortex-M7 @ 400 MHz, 64 MB SDRAM
+                                            Audio codec (24-bit 48 kHz), USB, UART MIDI
+                                            Mounts on 2x 20-pin 2.54 mm female headers
+
+  ────────────────────────────────────────────────────────────────────────────────
+    POWER
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref    Qty  Value / Part                Description
+    -----  ---  --------------------------  ----------------------------------------
+    J1       1  2.1 mm barrel jack          9V DC centre-positive input
+    D1       1  1N4001                      Reverse-polarity protection, DO-41
+    U2       1  MCP1700-5002E/TO            5V LDO 250 mA max, TO-92 (9V → 5V)
+    C1       1  100 µF / 16V electrolytic   9V rail input bulk cap
+    C2       1  100 nF ceramic              LDO input bypass cap
+    C3       1  100 nF ceramic              LDO output bypass cap
+    C4       1  100 µF / 10V electrolytic   5V rail output bulk cap
+
+  ────────────────────────────────────────────────────────────────────────────────
+    POTENTIOMETERS
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref         Qty  Value / Part            Description
+    ----------  ---  ----------------------  ----------------------------------------
+    RV1           1  10 kΩ linear            TIME          — Alpha RV09 9mm vertical
+    RV2           1  10 kΩ linear            REPEATS       — Alpha RV09 9mm vertical
+    RV3           1  10 kΩ linear            MIX           — Alpha RV09 9mm vertical
+    RV4           1  10 kΩ linear            FILTER        — Alpha RV09 9mm vertical
+    RV5           1  10 kΩ linear            GRIT          — Alpha RV09 9mm vertical
+    RV6           1  10 kΩ linear            MOD SPEED     — Alpha RV09 9mm vertical
+    RV7           1  10 kΩ linear            MOD DEPTH     — Alpha RV09 9mm vertical
+    R1–R7         7  1 kΩ  1/4W             ADC series resistors (wiper protection)
+    C5–C11        7  100 nF ceramic          Anti-alias / ESD cap per ADC channel
+
+  ────────────────────────────────────────────────────────────────────────────────
+    CONTROLS
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref         Qty  Value / Part            Description
+    ----------  ---  ----------------------  ----------------------------------------
+    SW1           1  EC11 (Alps or compat.)  Rotary encoder + push, 20mm — A→D0 B→D1 SW→D2
+    SW2           1  SPST momentary          Bypass footswitch → D3
+    SW3           1  SPST momentary          Tap tempo footswitch → D4
+    R8–R10        3  10 kΩ  1/4W            Encoder pull-ups to 3V3
+    R11           1  10 kΩ  1/4W            Bypass footswitch pull-up
+    R12           1  10 kΩ  1/4W            Tap footswitch pull-up
+    C12–C14       3  100 nF ceramic          Encoder debounce caps
+    C15           1  100 nF ceramic          Bypass footswitch debounce
+    C16           1  100 nF ceramic          Tap footswitch debounce
+
+  ────────────────────────────────────────────────────────────────────────────────
+    AUDIO I/O + TRUE-BYPASS RELAY
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref         Qty  Value / Part            Description
+    ----------  ---  ----------------------  ----------------------------------------
+    J2            1  Neutrik NMJ6HCD2        1/4" mono TS input jack
+    J3            1  Neutrik NMJ6HCD2        1/4" mono TS output jack
+    RLY1          1  Omron G5V-1 (5V coil)  SPDT relay — COM=in, NC=bypass, NO=effect
+    Q1            1  2N3904                  NPN relay coil driver, TO-92
+    R13           1  1 kΩ  1/4W             Q1 base resistor
+    D2            1  1N4148                  Flyback diode across relay coil, DO-35
+    LED1          1  Red LED 3mm             Bypass status indicator
+    R14           1  470 Ω  1/4W            LED current limiter (~4 mA at 3.3V)
+
+  ────────────────────────────────────────────────────────────────────────────────
+    MIDI INPUT
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Ref         Qty  Value / Part            Description
+    ----------  ---  ----------------------  ----------------------------------------
+    J4            1  Neutrik NMJ3HH-S        3.5mm TRS MIDI Type-A jack
+    U3            1  6N138                   High-speed optocoupler, DIP-8
+    R15–R16       2  220 Ω  1/4W            MIDI opto LED current limiters
+    D3            1  1N4148                  Reverse polarity protection, ring line
+    R17           1  4.7 kΩ  1/4W           6N138 output pull-up to 3V3
+    C17           1  100 nF ceramic          6N138 Vcc bypass cap
+
+    Note: USB MIDI handled natively by Daisy — no extra components required.
+
+  ────────────────────────────────────────────────────────────────────────────────
+    MISCELLANEOUS / HARDWARE
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Qty   Item
+    ----  -----------------------------------------------------------------------
+      2   20-pin 2.54 mm female header (Daisy Seed socket)
+      1   1590BB aluminium enclosure (112 x 60 x 31 mm)
+      7   D-shaft knob 6mm (pots)
+      1   Encoder knob or cap
+      -   M3 standoffs / screws for PCB
+      -   Panel drill: 7x pot 9mm, 1x encoder 7mm, 2x footswitch 12mm,
+          2x jack 12mm, 1x TRS 6mm, 1x LED 3mm, 1x DC jack 8mm
+
+  ────────────────────────────────────────────────────────────────────────────────
+    SUMMARY
+  ────────────────────────────────────────────────────────────────────────────────
+
+    Category              Unique refs   Total parts
+    --------------------  -----------   -----------
+    Modules                         1             1
+    ICs / semiconductors            4             4
+    Relays                          1             1
+    Transistors                     1             1
+    Diodes                          3             4
+    LEDs                            1             1
+    Potentiometers                  7             7
+    Switches / encoders             3             3
+    Resistors                      10            17
+    Capacitors                       8            17
+    Connectors / jacks               4             4
+    --------------------  -----------   -----------
+    TOTAL                          43            60

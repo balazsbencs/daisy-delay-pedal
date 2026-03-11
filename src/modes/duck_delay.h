@@ -1,0 +1,22 @@
+#pragma once
+#include "delay_mode.h"
+#include "../dsp/envelope_follower.h"
+#include "../dsp/tone_filter.h"
+#include "../dsp/dc_blocker.h"
+
+namespace pedal {
+
+class DuckDelay : public DelayMode {
+public:
+    void Init()  override;
+    void Reset() override;
+    StereoFrame Process(float input, const ParamSet& params) override;
+    const char* Name() const override { return "Duck"; }
+
+private:
+    EnvelopeFollower follower_;
+    ToneFilter       filter_;
+    DcBlocker        dc_;
+};
+
+} // namespace pedal

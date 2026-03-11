@@ -1,0 +1,28 @@
+#pragma once
+#include "delay_mode.h"
+#include "../dsp/envelope_follower.h"
+#include "../dsp/dc_blocker.h"
+
+namespace pedal {
+
+class SwellDelay : public DelayMode {
+public:
+    void Init()  override;
+    void Reset() override;
+    StereoFrame Process(float input, const ParamSet& params) override;
+    const char* Name() const override { return "Swell"; }
+
+private:
+    enum class SwellState { Idle, Attack, Decay };
+
+    EnvelopeFollower follower_;
+    DcBlocker        dc_;
+
+    SwellState state_    = SwellState::Idle;
+    float      env_gain_ = 0.0f;   // current envelope amplitude 0..1
+    bool       prev_above_threshold_ = false;
+
+    static constexpr float TRIGGER_THRESHOLD = 0.05f;
+};
+
+} // namespace pedal

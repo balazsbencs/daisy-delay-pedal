@@ -1,0 +1,125 @@
+(kicad_sch
+  (version 20231120)
+  (generator "eeschema")
+  (generator_version "7.0")
+  (paper "A4")
+  (lib_symbols)
+  (title_block
+    (title "Daisy Seed Delay Pedal — Audio I/O and Relay Bypass")
+    (rev "1.0")
+    (comment 1 "Mono TS jacks. G5V-1 5V relay for true bypass.")
+    (comment 2 "Q1 (2N3904) drives relay coil from D5 (RELAY_CTL) via 1k base R.")
+    (comment 3 "D2 (1N4148) flyback diode across coil. LED1 on D6 via 470R.")
+  )
+
+  ;; ── J2: Input TS jack ─────────────────────────────────────────────────────
+  (symbol (lib_id "Connector:AudioJack2") (at 30 50 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "j2")
+    (property "Reference" "J2" (at 30 43 0))
+    (property "Value" "INPUT_MONO" (at 30 45 0))
+    (property "Footprint" "Connector_Audio:Jack_6.35mm_Neutrik_NMJ6HCD2_Horizontal" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── J3: Output TS jack ────────────────────────────────────────────────────
+  (symbol (lib_id "Connector:AudioJack2") (at 30 80 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "j3")
+    (property "Reference" "J3" (at 30 73 0))
+    (property "Value" "OUTPUT_MONO" (at 30 75 0))
+    (property "Footprint" "Connector_Audio:Jack_6.35mm_Neutrik_NMJ6HCD2_Horizontal" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── RLY1: G5V-1 SPDT relay (5V coil) ─────────────────────────────────────
+  ;; COM = input signal; NC = output (bypass); NO = to Daisy IN_L
+  (symbol (lib_id "Relay:G5V-1") (at 100 60 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "rly1")
+    (property "Reference" "RLY1" (at 100 48 0))
+    (property "Value" "G5V-1" (at 100 50 0))
+    (property "Footprint" "Relay_THT:Relay_SPDT_Omron-G5V-1" (at 0 0 0) (hide yes))
+    (property "Datasheet" "https://omronfs.omron.com/en_US/ecb/products/pdf/en-g5v_1.pdf" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── D2: Flyback diode across relay coil ──────────────────────────────────
+  (symbol (lib_id "Device:D") (at 130 55 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "d2")
+    (property "Reference" "D2" (at 134 53 0))
+    (property "Value" "1N4148" (at 134 55 0))
+    (property "Footprint" "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── Q1: NPN transistor driving relay coil ────────────────────────────────
+  (symbol (lib_id "Device:Q_NPN_BCE") (at 130 75 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "q1")
+    (property "Reference" "Q1" (at 136 72 0))
+    (property "Value" "2N3904" (at 136 74 0))
+    (property "Footprint" "Package_TO_SOT_THT:TO-92_Inline" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── R13: Base resistor for Q1 ─────────────────────────────────────────────
+  (symbol (lib_id "Device:R") (at 115 78 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "r13")
+    (property "Reference" "R13" (at 119 76 0))
+    (property "Value" "1k" (at 119 78 0))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── LED1: Bypass status LED ───────────────────────────────────────────────
+  (symbol (lib_id "Device:LED") (at 170 45 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "led1")
+    (property "Reference" "LED1" (at 174 42 0))
+    (property "Value" "RED_3mm" (at 174 44 0))
+    (property "Footprint" "LED_THT:LED_D3.0mm" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── R14: LED current limiting resistor ────────────────────────────────────
+  (symbol (lib_id "Device:R") (at 170 35 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "r14")
+    (property "Reference" "R14" (at 174 33 0))
+    (property "Value" "470R" (at 174 35 0))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" (at 0 0 0) (hide yes))
+  )
+
+  ;; ── Net labels ────────────────────────────────────────────────────────────
+  ;; Input from jack tip → relay COM
+  (wire (pts (xy 37 48) (xy 90 48)))
+  (wire (pts (xy 90 48) (xy 95 60)))  ;; COM
+  ;; Relay NC → output jack tip (true bypass path)
+  (wire (pts (xy 115 55) (xy 125 55) (xy 125 80) (xy 37 80)))
+  ;; Relay NO → Daisy IN_L
+  (global_label (at 115 65 0) (shape output) (fields_autoplaced yes)
+    (property "Value" "AUDIO_IN_L") (property "Reference" ""))
+  ;; Daisy OUT_L → output jack tip (effect path via relay is wired same as NC for simplicity)
+  (global_label (at 37 88 0) (shape input) (fields_autoplaced yes)
+    (property "Value" "AUDIO_OUT_L") (property "Reference" ""))
+  ;; GND sleeves
+  (wire (pts (xy 37 52) (xy 37 95)))
+  (wire (pts (xy 37 82) (xy 37 95)))
+
+  ;; Relay coil → +5V and Q1 collector
+  (wire (pts (xy 110 50) (xy 130 50)))   ;; coil+ → +5V
+  (wire (pts (xy 110 70) (xy 130 70)))   ;; coil- → Q1 collector
+  (global_label (at 110 48 0) (shape input) (fields_autoplaced yes)
+    (property "Value" "+5V") (property "Reference" ""))
+  ;; D2 across coil
+  (wire (pts (xy 130 52) (xy 130 50)))
+  (wire (pts (xy 130 58) (xy 130 70)))
+  ;; Q1 emitter → GND
+  (wire (pts (xy 135 80) (xy 135 90)))
+  ;; R13 base resistor → RELAY_CTL
+  (wire (pts (xy 108 78) (xy 100 78)))
+  (global_label (at 100 78 0) (shape input) (fields_autoplaced yes)
+    (property "Value" "RELAY_CTL") (property "Reference" ""))
+
+  ;; LED circuit
+  (global_label (at 170 28 0) (shape input) (fields_autoplaced yes)
+    (property "Value" "LED_BYPASS") (property "Reference" ""))
+  (wire (pts (xy 170 30) (xy 170 32)))   ;; GPIO → R14
+  (wire (pts (xy 170 38) (xy 170 42)))   ;; R14 → LED anode
+  (wire (pts (xy 170 48) (xy 170 55)))   ;; LED cathode → GND
+
+  (text "Relay wiring:\n- COM: input jack tip\n- NC:  output jack tip (bypass - signal passes direct)\n- NO:  Daisy OUT_L (effect active path)\nWhen RELAY_CTL=HIGH → Q1 on → relay energised → NO selected (effect active)"
+    (at 30 100 0) (effects (font (size 1.5 1.5))))
+
+  (sheet_instances
+    (path "/b0000004-0000-0000-0000-000000000004" (page "5"))
+  )
+)
