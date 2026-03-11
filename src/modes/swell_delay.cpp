@@ -21,17 +21,21 @@ void SwellDelay::Reset() {
     dc_.Init();
     state_                = SwellState::Idle;
     env_gain_             = 0.0f;
+    attack_rate_          = 0.0f;
+    decay_rate_           = 0.0f;
     prev_above_threshold_ = false;
+}
+
+void SwellDelay::Prepare(const ParamSet& params) {
+    // mod_spd controls attack rate (samples to full), mod_dep controls decay rate
+    // Higher mod_spd = faster attack; use it as a per-sample increment coefficient
+    attack_rate_ = params.mod_spd * INV_SAMPLE_RATE;  // fraction/sample
+    decay_rate_  = params.mod_dep * INV_SAMPLE_RATE;
 }
 
 StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     swell_line.SetDelay(delay_samps);
-
-    // mod_spd controls attack rate (samples to full), mod_dep controls decay rate
-    // Higher mod_spd = faster attack; use it as a per-sample increment coefficient
-    const float attack_rate = params.mod_spd * INV_SAMPLE_RATE;  // fraction/sample
-    const float decay_rate  = params.mod_dep * INV_SAMPLE_RATE;
 
     // Detect rising edge: envelope crosses threshold upward
     const float level       = follower_.Process(input);
@@ -48,13 +52,13 @@ StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
         case SwellState::Idle:
             // env_gain_ stays at 0; decay down if somehow above
             if (env_gain_ > 0.0f) {
-                env_gain_ -= decay_rate;
+                env_gain_ -= decay_rate_;
                 if (env_gain_ < 0.0f) env_gain_ = 0.0f;
             }
             break;
 
         case SwellState::Attack:
-            env_gain_ += attack_rate;
+            env_gain_ += attack_rate_;
             if (env_gain_ >= 1.0f) {
                 env_gain_ = 1.0f;
                 state_    = SwellState::Decay;
@@ -62,7 +66,7 @@ StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
             break;
 
         case SwellState::Decay:
-            env_gain_ -= decay_rate;
+            env_gain_ -= decay_rate_;
             if (env_gain_ <= 0.0f) {
                 env_gain_ = 0.0f;
                 state_    = SwellState::Idle;

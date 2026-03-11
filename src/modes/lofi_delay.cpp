@@ -20,6 +20,19 @@ void LofiDelay::Reset() {
     dc_.Init();
     held_sample_ = 0.0f;
     sr_counter_  = 0.0f;
+    bits_        = 16;
+    bit_scale_   = 65536.0f;
+    decimate_    = 1.0f;
+}
+
+void LofiDelay::Prepare(const ParamSet& params) {
+    // bits range: 16 (grit=0) down to 4 (grit=1)
+    bits_ = 16 - static_cast<int>(params.grit * 12.0f);
+    if (bits_ < 1) bits_ = 1;
+    bit_scale_ = powf(2.0f, static_cast<float>(bits_));
+
+    // grit=0: decimation factor=1 (passthrough), grit=1: factor=16
+    decimate_ = 1.0f + params.grit * 15.0f;
 }
 
 StereoFrame LofiDelay::Process(float input, const ParamSet& params) {
@@ -29,20 +42,15 @@ StereoFrame LofiDelay::Process(float input, const ParamSet& params) {
     float wet = lofi_line.Read();
 
     // --- Bit crush ---
-    // bits range: 16 (grit=0) down to 4 (grit=1)
-    const int bits = 16 - static_cast<int>(params.grit * 12.0f);
-    if (bits >= 1) {
-        const float scale = powf(2.0f, static_cast<float>(bits));
-        wet = roundf(wet * scale) / scale;
+    if (bits_ < 16) {
+        wet = roundf(wet * bit_scale_) / bit_scale_;
     }
 
     // --- Sample-rate reduction (decimation) ---
-    // grit=0: decimation factor=1 (passthrough), grit=1: factor=16
     // sr_counter_ accumulates; when >= factor, update held sample
-    const float decimate = 1.0f + params.grit * 15.0f; // 1..16
     sr_counter_ += 1.0f;
-    if (sr_counter_ >= decimate) {
-        sr_counter_ -= decimate;
+    if (sr_counter_ >= decimate_) {
+        sr_counter_ -= decimate_;
         held_sample_ = wet;
     }
     wet = held_sample_;

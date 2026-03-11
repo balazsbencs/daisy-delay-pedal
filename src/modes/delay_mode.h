@@ -9,6 +9,8 @@ public:
     virtual ~DelayMode() = default;
     virtual void Init()  = 0;
     virtual void Reset() = 0;
+    // Prepare for a block: use this for expensive per-parameter updates.
+    virtual void Prepare(const ParamSet& params) { (void)params; }
     // Process one input sample, return stereo output (wet only, before mix)
     virtual StereoFrame Process(float input, const ParamSet& params) = 0;
     virtual const char* Name() const = 0;

@@ -27,6 +27,11 @@ void DualDelay::Reset() {
     dc_r_.Init();
 }
 
+void DualDelay::Prepare(const ParamSet& params) {
+    filter_l_.SetKnob(params.filter);
+    filter_r_.SetKnob(params.filter);
+}
+
 StereoFrame DualDelay::Process(float input, const ParamSet& params) {
     // Left: base delay time
     // Right: detuned by mod_dep (0 = same, 1 = 50% longer)
@@ -35,9 +40,6 @@ StereoFrame DualDelay::Process(float input, const ParamSet& params) {
 
     dual_line_l.SetDelay(delay_l);
     dual_line_r.SetDelay(delay_r);
-
-    filter_l_.SetKnob(params.filter);
-    filter_r_.SetKnob(params.filter);
 
     float wet_l = dual_line_l.Read();
     float wet_r = dual_line_r.Read();

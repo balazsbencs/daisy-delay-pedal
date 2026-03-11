@@ -67,6 +67,10 @@ private:
     bool         bypassed_     = true;   // starts bypassed until Init() done
     bool         new_bypass_   = true;
     volatile bool bypass_dirty_ = false;
+
+    // Precalculated mixing gains
+    float mix_dry_ = 1.0f;
+    float mix_wet_ = 0.0f;
 };
 
 } // namespace pedal

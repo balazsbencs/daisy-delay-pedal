@@ -8,15 +8,19 @@ class LofiDelay : public DelayMode {
 public:
     void Init()  override;
     void Reset() override;
+    void Prepare(const ParamSet& params) override;
     StereoFrame Process(float input, const ParamSet& params) override;
     const char* Name() const override { return "Lofi"; }
 
 private:
     DcBlocker dc_;
 
-    // Sample-rate reduction state: hold output until decimation counter expires
+    // Sample-rate reduction and bitcrush state
     float    held_sample_  = 0.0f;
     float    sr_counter_   = 0.0f;  // accumulator for decimation
+    float    decimate_     = 1.0f;
+    float    bit_scale_    = 65536.0f;
+    int      bits_         = 16;
 };
 
 } // namespace pedal

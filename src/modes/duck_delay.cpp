@@ -21,6 +21,10 @@ void DuckDelay::Reset() {
     dc_.Init();
 }
 
+void DuckDelay::Prepare(const ParamSet& params) {
+    filter_.SetKnob(params.filter);
+}
+
 StereoFrame DuckDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     duck_line.SetDelay(delay_samps);
@@ -31,14 +35,15 @@ StereoFrame DuckDelay::Process(float input, const ParamSet& params) {
     if (duck_amount < 0.0f) duck_amount = 0.0f;
     if (duck_amount > 1.0f) duck_amount = 1.0f;
 
-    float wet = duck_line.Read() * duck_amount;
-
-    filter_.SetKnob(params.filter);
+    float wet = duck_line.Read();
     wet = filter_.Process(wet);
 
+    // Feedback is taken BEFORE ducking, so the delay history is preserved
     const float feedback = wet * params.repeats;
     duck_line.Write(input + feedback);
 
+    // Duck the output only
+    wet *= duck_amount;
     wet = dc_.Process(wet);
 
     return StereoFrame{wet, wet};

@@ -19,12 +19,15 @@ void DigitalDelay::Reset() {
     dc_.Init();
 }
 
+void DigitalDelay::Prepare(const ParamSet& params) {
+    filter_.SetKnob(params.filter);
+}
+
 StereoFrame DigitalDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     digital_line.SetDelay(delay_samps);
 
     float wet = digital_line.Read();
-    filter_.SetKnob(params.filter);
     wet = filter_.Process(wet);
 
     const float feedback = wet * params.repeats;

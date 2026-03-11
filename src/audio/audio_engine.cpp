@@ -75,6 +75,15 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
     const ParamSet& params = param_buf_[param_read_idx_];
     DelayMode*      mode   = mode_;
 
+    // Constant-power mixing: sin/cos mapping avoids the -3dB dip at 50/50 mix.
+    const float angle = params.mix * 1.57079632679f; // pi/2
+    mix_dry_          = cosf(angle);
+    mix_wet_          = sinf(angle);
+
+    if (mode != nullptr) {
+        mode->Prepare(params);
+    }
+
     for (size_t i = 0; i < size; ++i) {
         const float dry = IN_L[i]; // pedal is mono-input
 
@@ -87,10 +96,8 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
             // never need to know about the dry path.
             const StereoFrame wet = mode->Process(dry, params);
 
-            // Constant-power-style mix: dry fades as wet rises.
-            const float dry_gain = 1.0f - params.mix;
-            OUT_L[i] = dry * dry_gain + wet.left  * params.mix;
-            OUT_R[i] = dry * dry_gain + wet.right * params.mix;
+            OUT_L[i] = dry * mix_dry_ + wet.left  * mix_wet_;
+            OUT_R[i] = dry * mix_dry_ + wet.right * mix_wet_;
         }
     }
 }

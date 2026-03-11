@@ -9,6 +9,7 @@ class SwellDelay : public DelayMode {
 public:
     void Init()  override;
     void Reset() override;
+    void Prepare(const ParamSet& params) override;
     StereoFrame Process(float input, const ParamSet& params) override;
     const char* Name() const override { return "Swell"; }
 
@@ -20,6 +21,8 @@ private:
 
     SwellState state_    = SwellState::Idle;
     float      env_gain_ = 0.0f;   // current envelope amplitude 0..1
+    float      attack_rate_ = 0.0f;
+    float      decay_rate_  = 0.0f;
     bool       prev_above_threshold_ = false;
 
     static constexpr float TRIGGER_THRESHOLD = 0.05f;

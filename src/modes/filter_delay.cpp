@@ -23,23 +23,29 @@ void FilterDelay::Reset() {
     z2_ = 0.0f;
 }
 
+void FilterDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
+}
+
 StereoFrame FilterDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     filter_line.SetDelay(delay_samps);
 
-    lfo_.SetRate(params.mod_spd);
     const float lfo_val = lfo_.Process(); // -1..+1
 
     // Sweep cutoff: 200 Hz base + LFO * mod_dep * 2000 Hz
-    float cutoff_hz = 200.0f + lfo_val * params.mod_dep * 2000.0f;
-    if (cutoff_hz < 20.0f)          cutoff_hz = 20.0f;
-    if (cutoff_hz > 20000.0f)       cutoff_hz = 20000.0f;
+    float cutoff_hz = 400.0f + lfo_val * params.mod_dep * 2000.0f;
+    if (cutoff_hz < 40.0f)           cutoff_hz = 40.0f;
+    if (cutoff_hz > 10000.0f)        cutoff_hz = 10000.0f;
 
     // SVF coefficients
     // f = 2 * sin(pi * cutoff / sr)  -- cheap approximation
-    const float f = 2.0f * sinf(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
-    // q resonance: 0.5 (damped) to 3.5 (near self-oscillation)
-    const float q = 0.5f + params.mod_dep * 3.0f;
+    float f = 2.0f * sinf(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
+    if (f > 1.7f) f = 1.7f; // Stability limit for Chamberlin SVF
+
+    // Damping q: 0 = self-oscillate, 2 = critically damped.
+    // Map mod_dep to increase resonance (decrease damping).
+    const float q = 2.0f - params.mod_dep * 1.95f;
 
     float wet = filter_line.Read();
 

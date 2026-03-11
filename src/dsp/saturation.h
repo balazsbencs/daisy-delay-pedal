@@ -15,10 +15,10 @@ private:
 
 inline float Saturation::Process(float sample) const {
     float driven = sample * drive_;
-    // Soft clip via tanh approximation: 3x - x^3 / 3, clamped
+    // Soft clip via cubic approximation: (3x - x^3) / 2, clamped
     if (driven > 1.0f)  driven = 1.0f;
     if (driven < -1.0f) driven = -1.0f;
-    return driven * (3.0f - driven * driven) * (1.0f / 3.0f);
+    return driven * (3.0f - driven * driven) * 0.5f;
 }
 
 } // namespace pedal

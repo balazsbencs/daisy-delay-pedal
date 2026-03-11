@@ -21,8 +21,13 @@ void TapeDelay::Reset() {
     dc_.Init();
 }
 
-StereoFrame TapeDelay::Process(float input, const ParamSet& params) {
+void TapeDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    filter_.SetKnob(params.filter);
+    sat_.SetDrive(params.grit);
+}
+
+StereoFrame TapeDelay::Process(float input, const ParamSet& params) {
     const float lfo_val = lfo_.Process(); // -1..+1
 
     // wow/flutter: max deviation = mod_dep * 50 samples
@@ -37,11 +42,9 @@ StereoFrame TapeDelay::Process(float input, const ParamSet& params) {
 
     float wet = tape_line.Read();
 
-    filter_.SetKnob(params.filter);
     wet = filter_.Process(wet);
 
     // Saturation on feedback path; drive scales with grit
-    sat_.SetDrive(params.grit);
     wet = sat_.Process(wet * (1.0f + params.grit));
 
     const float feedback = wet * params.repeats;

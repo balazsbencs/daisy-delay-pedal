@@ -20,11 +20,15 @@ void TremDelay::Reset() {
     dc_.Init();
 }
 
+void TremDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
+    filter_.SetKnob(params.filter);
+}
+
 StereoFrame TremDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     trem_line.SetDelay(delay_samps);
 
-    lfo_.SetRate(params.mod_spd);
     const float lfo_val = lfo_.Process(); // -1..+1
 
     // gain = 1 - depth * (1 - lfo) / 2
@@ -32,14 +36,15 @@ StereoFrame TremDelay::Process(float input, const ParamSet& params) {
     // At lfo=-1: gain = 1 - depth (most reduced)
     const float gain = 1.0f - params.mod_dep * (1.0f - lfo_val) * 0.5f;
 
-    float wet = trem_line.Read() * gain;
-
-    filter_.SetKnob(params.filter);
+    float wet = trem_line.Read();
     wet = filter_.Process(wet);
 
+    // Feedback is taken BEFORE tremolo modulation
     const float feedback = wet * params.repeats;
     trem_line.Write(input + feedback);
 
+    // Apply tremolo to the output mix only
+    wet *= gain;
     wet = dc_.Process(wet);
 
     return StereoFrame{wet, wet};

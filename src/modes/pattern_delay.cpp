@@ -22,6 +22,10 @@ void PatternDelay::Reset() {
     dc_.Init();
 }
 
+void PatternDelay::Prepare(const ParamSet& params) {
+    filter_.SetKnob(params.filter);
+}
+
 StereoFrame PatternDelay::Process(float input, const ParamSet& params) {
     const float base_samps = params.time * SAMPLE_RATE;
 
@@ -45,7 +49,6 @@ StereoFrame PatternDelay::Process(float input, const ParamSet& params) {
     }
     wet *= (1.0f / 3.0f); // normalise sum of taps
 
-    filter_.SetKnob(params.filter);
     wet = filter_.Process(wet);
 
     // Feedback driven from first tap only

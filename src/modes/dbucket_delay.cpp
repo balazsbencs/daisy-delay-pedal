@@ -30,14 +30,16 @@ void DbucketDelay::Reset() {
     noise_seed_ = 12345u;
 }
 
-StereoFrame DbucketDelay::Process(float input, const ParamSet& params) {
-    const float delay_samps = params.time * SAMPLE_RATE;
-    dbucket_line.SetDelay(delay_samps);
-
+void DbucketDelay::Prepare(const ParamSet& params) {
     // BBDs progressively roll off HF per repeat; map grit to a lower filter knob
     // grit=0 -> knob=0.4 (gentle LP), grit=1 -> knob=0.1 (heavy LP)
     const float filter_knob = 0.4f - params.grit * 0.3f;
     filter_.SetKnob(filter_knob);
+}
+
+StereoFrame DbucketDelay::Process(float input, const ParamSet& params) {
+    const float delay_samps = params.time * SAMPLE_RATE;
+    dbucket_line.SetDelay(delay_samps);
 
     float wet = dbucket_line.Read();
     wet       = filter_.Process(wet);
