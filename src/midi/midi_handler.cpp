@@ -22,12 +22,17 @@ void MidiLearn::Init() {
 }
 
 void MidiLearn::Start(int param_index) {
+    if (param_index < 0 || param_index >= 7) {
+        active_      = false;
+        param_index_ = -1;
+        return;
+    }
     active_      = true;
     param_index_ = param_index;
 }
 
 bool MidiLearn::TryLearn(uint8_t cc_num) {
-    if (!active_ || param_index_ < 0) {
+    if (!active_ || param_index_ < 0 || param_index_ >= 7) {
         return false;
     }
     cc_map_[param_index_] = cc_num;

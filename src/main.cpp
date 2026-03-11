@@ -76,6 +76,9 @@ static pedal::ParamSet BuildParams(const pedal::ControlState& ctrl,
 
 /// Switch to a new mode, resetting its DSP state and informing the engine.
 static void ActivateMode(pedal::DelayModeId new_id) {
+    if (new_id == current_mode) {
+        return;
+    }
     current_mode = new_id;
     pedal::DelayMode* m = mode_registry.get(new_id);
     m->Reset();
@@ -114,7 +117,9 @@ int main() {
     led_bypass.Write(true);        // LED on → pedal is active
 
     // ── Set initial mode ──────────────────────────────────────────────────────
-    ActivateMode(current_mode);
+    pedal::DelayMode* initial_mode = mode_registry.get(current_mode);
+    initial_mode->Reset();
+    audio_engine.SetMode(initial_mode);
 
     // ── Start audio interrupt ─────────────────────────────────────────────────
     hw.StartAudio(pedal::AudioEngine::AudioCallback);

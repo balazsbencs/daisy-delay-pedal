@@ -8,6 +8,7 @@ void TempoSync::Init() {
     tap_active_   = false;
     clock_count_  = 0;
     last_beat_ms_ = 0;
+    last_tap_ms_  = 0;
     midi_period_s_ = -1.0f;
 }
 
@@ -34,6 +35,7 @@ void TempoSync::OnTap(uint32_t now_ms) {
     const float bpm = tap_tempo_.Tap(now_ms);
     if (bpm > 0.0f) {
         tap_active_ = true;
+        last_tap_ms_ = now_ms;
     }
 }
 
@@ -51,6 +53,14 @@ void TempoSync::Process(uint32_t now_ms) {
         if (silence > MIDI_CLOCK_TIMEOUT_MS) {
             midi_active_   = false;
             midi_period_s_ = -1.0f;
+        }
+    }
+
+    // Expire tap override when taps go stale.
+    if (tap_active_ && last_tap_ms_ > 0) {
+        const uint32_t tap_silence = now_ms - last_tap_ms_;
+        if (tap_silence > TAP_TIMEOUT_MS) {
+            tap_active_ = false;
         }
     }
 }

@@ -1,4 +1,5 @@
 #include "audio_engine.h"
+#include "util/scopedirqblocker.h"
 
 using namespace daisy;
 
@@ -24,21 +25,21 @@ void AudioEngine::Init(DaisySeed* hw) {
 // ── Main-loop API ─────────────────────────────────────────────────────────────
 
 void AudioEngine::SetParams(const ParamSet& params) {
-    // Write to the buffer the ISR is NOT currently reading.
-    const int write_idx    = 1 - param_read_idx_;
-    param_buf_[write_idx]  = params;
+    // Prevent ISR from flipping param_read_idx_ while selecting write buffer.
+    daisy::ScopedIrqBlocker irq_block;
+    const int               write_idx = 1 - param_read_idx_;
+    param_buf_[write_idx]             = params;
     // Publish: the ISR will flip param_read_idx_ on the next block entry.
     param_dirty_ = true;
 }
 
 void AudioEngine::SetMode(DelayMode* mode) {
-    // The mode pointer is written as a single aligned word on Cortex-M, which
-    // is inherently atomic.  The ISR will pick up the new pointer at the start
-    // of the next block's loop iteration.
+    daisy::ScopedIrqBlocker irq_block;
     mode_ = mode;
 }
 
 void AudioEngine::SetBypass(bool bypassed) {
+    daisy::ScopedIrqBlocker irq_block;
     new_bypass_   = bypassed;
     bypass_dirty_ = true;
 }
@@ -72,18 +73,19 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
     }
 
     const ParamSet& params = param_buf_[param_read_idx_];
+    DelayMode*      mode   = mode_;
 
     for (size_t i = 0; i < size; ++i) {
         const float dry = IN_L[i]; // pedal is mono-input
 
-        if (bypassed_ || mode_ == nullptr) {
+        if (bypassed_ || mode == nullptr) {
             // True bypass: route input directly to both outputs.
             OUT_L[i] = dry;
             OUT_R[i] = dry;
         } else {
             // Wet-only result from the mode; mix is applied here so modes
             // never need to know about the dry path.
-            const StereoFrame wet = mode_->Process(dry, params);
+            const StereoFrame wet = mode->Process(dry, params);
 
             // Constant-power-style mix: dry fades as wet rises.
             const float dry_gain = 1.0f - params.mix;

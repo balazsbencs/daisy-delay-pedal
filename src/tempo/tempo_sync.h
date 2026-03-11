@@ -45,6 +45,7 @@ private:
     static constexpr uint32_t MIDI_CLOCK_TIMEOUT_MS = 2000;
 
     uint32_t last_beat_ms_  = 0;  ///< Timestamp of the most recent beat edge.
+    uint32_t last_tap_ms_   = 0;  ///< Timestamp of most recent tap event.
     uint32_t clock_count_   = 0;  ///< Pulses accumulated in the current beat.
     float    midi_period_s_ = -1.0f;
     bool     midi_active_   = false;
