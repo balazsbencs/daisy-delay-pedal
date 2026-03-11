@@ -17,6 +17,12 @@ using OledType = daisy::OledDisplay<daisy::SSD130xI2c128x64Driver>;
 /// redraws to approximately 30 fps (configurable via DISPLAY_UPDATE_MS).
 class DisplayManager {
 public:
+    enum class PresetUiEvent {
+        None,
+        Loaded,
+        Saved,
+    };
+
     void Init();
 
     /// Call once per main loop iteration.
@@ -30,6 +36,9 @@ public:
                 const ParamSet& params,
                 const Bypass&   bypass,
                 const TempoSync& tempo,
+                int             preset_slot,
+                bool            shift_layer_active,
+                PresetUiEvent   preset_event,
                 uint32_t        now_ms);
 
 private:
@@ -37,7 +46,10 @@ private:
     void Render(DelayModeId      mode,
                 const ParamSet&  params,
                 const Bypass&    bypass,
-                const TempoSync& tempo);
+                const TempoSync& tempo,
+                int              preset_slot,
+                bool             shift_layer_active,
+                PresetUiEvent    preset_event);
 
     /// Draw an outlined rectangle with an interior fill proportional to val [0, 1].
     /// @param x   Left edge of the bar.

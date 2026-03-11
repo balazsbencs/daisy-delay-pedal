@@ -5,9 +5,10 @@ A multi-mode digital delay guitar pedal firmware for the [Electrosmith Daisy See
 ## Features
 
 - **10 delay modes** selectable via rotary encoder
-- **7 dedicated knobs** for real-time parameter control
+- **4 encoder pots + shift layer** for controlling all 7 delay parameters
 - **SSD1306 OLED display** showing mode and parameter state at 30 fps
 - **Tap tempo** footswitch with BPM averaging
+- **8 onboard presets** stored in QSPI flash (mode + all 7 params)
 - **MIDI control** via USB MIDI and TRS MIDI Type A
   - CC mapping for all 7 parameters
   - Program Change for mode selection
@@ -41,36 +42,35 @@ A multi-mode digital delay guitar pedal firmware for the [Electrosmith Daisy See
 
 | Function | Pin | Notes |
 |----------|-----|-------|
-| Time pot | A0 (D15) | ADC channel 0 |
-| Repeats pot | A1 (D16) | ADC channel 1 |
-| Mix pot | A2 (D17) | ADC channel 2 |
-| Filter pot | A3 (D18) | ADC channel 3 |
-| Grit pot | A4 (D19) | ADC channel 4 |
-| Mod Speed pot | A5 (D20) | ADC channel 5 |
-| Mod Depth pot | A6 (D21) | ADC channel 6 |
-| Encoder A | D0 | Quadrature input |
-| Encoder B | D1 | Quadrature input |
-| Encoder button | D2 | Mode select / MIDI learn |
+| Mode encoder A | D0 | Quadrature input |
+| Mode encoder B | D1 | Quadrature input |
+| Mode encoder button | D2 | Shift / preset chord |
 | Bypass footswitch | D3 | Toggle effect in/out |
-| Tap tempo footswitch | D4 | Tap BPM input |
+| Tap/preset footswitch | D4 | Tap tempo or preset action (chorded) |
 | Relay control | D5 | True bypass relay |
 | Bypass LED | D6 | Active indicator |
+| Param encoder 1 A/B | D7 / D8 | Primary: Time, Shift: Grit |
+| Param encoder 2 A/B | D9 / D10 | Primary: Repeats, Shift: Mod Speed |
+| Param encoder 3 A/B | D27 / D28 | Primary: Mix, Shift: Mod Depth |
+| Param encoder 4 A/B | D29 / D30 | Primary: Filter, Shift: reserved |
 | OLED SCL | D11 | I2C1 clock |
 | OLED SDA | D12 | I2C1 data |
 | TRS MIDI TX | D13 | UART TX |
 | TRS MIDI RX | D14 | UART RX |
 
-### Knob Reference
+### Encoder Layer Map
 
-| Knob | Parameter | Range |
-|------|-----------|-------|
-| Time | Delay time | 10 ms – 3 s (log curve) |
-| Repeats | Feedback | 0 – 98% |
-| Mix | Wet/dry blend | 0 – 100% |
-| Filter | Tone | LP at 0 → Flat at 50% → HP at 100% |
-| Grit | Mode-specific dirt/character | 0 – 100% |
-| Mod Speed | Modulation rate | 0.05 – 10 Hz |
-| Mod Depth | Modulation amount | 0 – 100% |
+Primary layer (mode encoder button not held):
+- Param encoder 1 → Time
+- Param encoder 2 → Repeats
+- Param encoder 3 → Mix
+- Param encoder 4 → Filter
+
+Shift layer (hold mode encoder button):
+- Param encoder 1 → Grit
+- Param encoder 2 → Mod Speed
+- Param encoder 3 → Mod Depth
+- Param encoder 4 → Reserved
 
 ---
 
@@ -105,6 +105,25 @@ When MIDI Clock is received, the delay time is overridden and locked to the beat
 3. That CC is now mapped to that parameter.
 
 Mappings reset on power cycle (non-volatile storage not yet implemented).
+
+---
+
+## Presets
+
+- **8 local slots** in onboard QSPI flash
+- Each preset stores:
+  - Delay mode
+  - All 7 normalized parameter values
+
+### Preset Workflow
+
+1. Hold the **mode encoder button** (preset chord modifier).
+2. While held, turn the mode encoder to select slot `P1..P8` (shown on OLED).
+3. While still held:
+   - Tap footswitch short press: **load** selected slot.
+   - Tap footswitch hold (`>= 700 ms`): **save** current mode + params to slot.
+
+Tap tempo behavior is unchanged when the mode encoder button is not held.
 
 ---
 
@@ -175,7 +194,7 @@ delay/
 │   │   ├── constants.h           # Sample rate, buffer sizes, MIDI CCs
 │   │   └── delay_mode_id.h       # enum class DelayModeId
 │   ├── hardware/
-│   │   ├── controls.h/.cpp       # Pot smoothing, encoder, switches
+│   │   ├── controls.h/.cpp       # Encoder + switch polling
 │   ├── audio/
 │   │   ├── stereo_frame.h        # POD StereoFrame type
 │   │   ├── audio_engine.h/.cpp   # Audio callback, double-buffered params
@@ -210,9 +229,11 @@ delay/
 │   ├── display/
 │   │   ├── display_layout.h      # Screen layout constants
 │   │   └── display_manager.h/.cpp # OLED rendering at 30 fps
+│   ├── presets/
+│   │   └── preset_manager.h/.cpp # QSPI-backed preset storage
 │   └── tempo/
 │       ├── tap_tempo.h/.cpp      # Tap detection + BPM averaging
-│       └── tempo_sync.h/.cpp     # MIDI Clock > Tap > Pot priority
+│       └── tempo_sync.h/.cpp     # MIDI Clock > Tap > control priority
 └── third_party/
     ├── libDaisy/                 # git submodule
     └── DaisySP/                  # git submodule
@@ -225,9 +246,9 @@ delay/
 ### Parameter Flow
 
 ```
-Pots (ADC) ──┐
-Encoder ─────┼──► Controls::Poll() ──► ParamSet (immutable snapshot)
-MIDI CC ─────┘                               │
+Mode/Param Encoders ──┐
+MIDI CC ──────────────┼──► ParamEditState ──► ParamSet (immutable snapshot)
+Preset Recall ────────┘                               │
                                              ▼
 Tap/MIDI Clock ──► TempoSync ──► time override
                                              │
@@ -248,7 +269,7 @@ Tap/MIDI Clock ──► TempoSync ──► time override
 
 ### Key Design Decisions
 
-1. **Immutable `ParamSet`** — A fresh snapshot is taken each main loop iteration. The audio ISR never touches ADC values directly, preventing data races.
+1. **Immutable `ParamSet`** — A fresh snapshot is taken each main loop iteration. The audio ISR never touches live control values directly, preventing data races.
 
 2. **Static SDRAM allocation** — All delay buffers (`~6.3 MB total`) are declared with `DSY_SDRAM_BSS` at file scope. No heap, no `malloc`. The linker places them in SDRAM automatically.
 
@@ -256,7 +277,8 @@ Tap/MIDI Clock ──► TempoSync ──► time override
 
 4. **Double-buffered parameters** — Main loop writes to the idle buffer and sets a dirty flag; the ISR swaps the read index at block entry. No mutex needed on Cortex-M7 for aligned word stores.
 
-5. **Tempo priority** — `TempoSync` implements a priority chain: MIDI Clock (highest) → Tap Tempo → Pot. MIDI Clock lock expires after 2 s of silence.
+5. **Tempo priority** — `TempoSync` implements a priority chain: MIDI Clock (highest) → Tap Tempo → Encoder parameter time. MIDI Clock lock expires after 2 s of silence.
+6. **Persistent presets** — `PresetManager` stores mode + normalized params in QSPI using `PersistentStorage`, with checksum validation on boot.
 
 ### SDRAM Memory Budget
 

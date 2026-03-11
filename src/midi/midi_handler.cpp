@@ -22,7 +22,7 @@ void MidiLearn::Init() {
 }
 
 void MidiLearn::Start(int param_index) {
-    if (param_index < 0 || param_index >= 7) {
+    if (param_index < 0 || param_index >= NUM_PARAMS) {
         active_      = false;
         param_index_ = -1;
         return;
@@ -32,7 +32,7 @@ void MidiLearn::Start(int param_index) {
 }
 
 bool MidiLearn::TryLearn(uint8_t cc_num) {
-    if (!active_ || param_index_ < 0 || param_index_ >= 7) {
+    if (!active_ || param_index_ < 0 || param_index_ >= NUM_PARAMS) {
         return false;
     }
     cc_map_[param_index_] = cc_num;
@@ -89,11 +89,11 @@ void MidiHandlerPedal::ProcessEvent(const MidiEvent& ev, MidiState& state) {
             }
 
             // Dispatch to whichever parameter owns this CC number.
-            for (int i = 0; i < 7; ++i) {
-                if (cc_num == learn_.GetMapping(i)) {
-                    state.cc_normalized[i] = val;
-                    state.cc_received[i]   = true;
-                }
+    for (int i = 0; i < NUM_PARAMS; ++i) {
+        if (cc_num == learn_.GetMapping(i)) {
+            state.cc_normalized[i] = val;
+            state.cc_received[i]   = true;
+        }
             }
             break;
         }

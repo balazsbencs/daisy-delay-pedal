@@ -10,12 +10,12 @@ namespace pedal {
 /// Consumers should treat each field as a one-shot event unless noted.
 struct MidiState {
     /// Normalised CC values [0, 1] indexed by parameter (0 = Time … 6 = ModDep).
-    float cc_normalized[7]{};
+    float cc_normalized[NUM_PARAMS]{};
 
     /// True for each slot where a CC message was received this poll cycle.
     /// Use this (not cc_normalized > 0) to detect an incoming CC, since a
     /// value of 0 is a valid MIDI CC state.
-    bool cc_received[7]{};
+    bool cc_received[NUM_PARAMS]{};
 
     /// -1 when no Program Change was received, otherwise 0..9.
     int  program_change = -1;
@@ -51,8 +51,8 @@ public:
 private:
     bool    active_      = false;
     int     param_index_ = -1;
-    uint8_t cc_map_[7]   = {CC_TIME, CC_REPEATS, CC_MIX,
-                             CC_FILTER, CC_GRIT, CC_MOD_SPD, CC_MOD_DEP};
+    uint8_t cc_map_[NUM_PARAMS]
+        = {CC_TIME, CC_REPEATS, CC_MIX, CC_FILTER, CC_GRIT, CC_MOD_SPD, CC_MOD_DEP};
 };
 
 /// Polls both UART and USB MIDI interfaces and converts incoming events into

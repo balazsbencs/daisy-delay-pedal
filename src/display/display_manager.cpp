@@ -31,12 +31,15 @@ void DisplayManager::Update(DelayModeId      mode,
                              const ParamSet&  params,
                              const Bypass&    bypass,
                              const TempoSync& tempo,
+                             int              preset_slot,
+                             bool             shift_layer_active,
+                             PresetUiEvent    preset_event,
                              uint32_t         now_ms) {
     if (now_ms - last_update_ms_ < DISPLAY_UPDATE_MS) {
         return;
     }
     last_update_ms_ = now_ms;
-    Render(mode, params, bypass, tempo);
+    Render(mode, params, bypass, tempo, preset_slot, shift_layer_active, preset_event);
 }
 
 // ---------------------------------------------------------------------------
@@ -46,7 +49,10 @@ void DisplayManager::Update(DelayModeId      mode,
 void DisplayManager::Render(DelayModeId      mode,
                              const ParamSet&  params,
                              const Bypass&    bypass,
-                             const TempoSync& tempo) {
+                             const TempoSync& tempo,
+                             int              preset_slot,
+                             bool             shift_layer_active,
+                             PresetUiEvent    preset_event) {
     oled_.Fill(false);
 
     // --- Mode name (large font, top-left) ---
@@ -56,6 +62,11 @@ void DisplayManager::Render(DelayModeId      mode,
     // --- Bypass indicator (top-right) ---
     oled_.SetCursor(layout::BYPASS_X, layout::BYPASS_Y);
     oled_.WriteString(bypass.IsActive() ? "ON" : "BY", Font_7x10, true);
+
+    // --- Active preset slot (top-right) ---
+    char slot_label[6] = {'P', static_cast<char>('1' + (preset_slot % 8)), 0, 0, 0, 0};
+    oled_.SetCursor(114, 11);
+    oled_.WriteString(slot_label, Font_6x8, true);
 
     // --- Horizontal separator ---
     oled_.DrawLine(0, layout::SEP_Y, layout::SCREEN_W - 1, layout::SEP_Y, true);
@@ -102,6 +113,19 @@ void DisplayManager::Render(DelayModeId      mode,
         oled_.WriteString("MIDI", Font_6x8, true);
     } else if (tempo.HasTap()) {
         oled_.WriteString("TAP", Font_6x8, true);
+    }
+
+    // --- Shift-layer and preset feedback ---
+    if (shift_layer_active) {
+        oled_.SetCursor(88, layout::TEMPO_Y);
+        oled_.WriteString("SHF", Font_6x8, true);
+    }
+    if (preset_event == PresetUiEvent::Loaded) {
+        oled_.SetCursor(48, layout::MODE_Y);
+        oled_.WriteString("LOAD", Font_6x8, true);
+    } else if (preset_event == PresetUiEvent::Saved) {
+        oled_.SetCursor(48, layout::MODE_Y);
+        oled_.WriteString("SAVE", Font_6x8, true);
     }
 
     oled_.Update();

@@ -14,12 +14,24 @@ constexpr size_t MAX_DELAY_SAMPLES = static_cast<size_t>(SAMPLE_RATE * 3.0f);
 // Number of delay modes
 constexpr int NUM_MODES = 10;
 
-// Number of pots
-constexpr int NUM_POTS = 7;
+// Number of editable delay parameters.
+constexpr int NUM_PARAMS = 7;
+// Backward-compatible alias for older code paths.
+constexpr int NUM_POTS = NUM_PARAMS;
 
 // Smoothing coefficient for pot values (one-pole LP).
 // α = 1 − e^(−T/τ), T = 1 ms loop period, τ = 30 ms → α ≈ 0.033
 constexpr float POT_SMOOTH = 0.033f;
+
+// Encoder parameter edit behavior.
+constexpr float PARAM_STEP_SLOW = 0.005f;
+constexpr float PARAM_STEP_FAST = 0.015f;
+constexpr uint32_t ENCODER_FAST_WINDOW_MS = 40;
+
+// Presets
+constexpr int      PRESET_SLOT_COUNT   = 8;
+constexpr uint32_t PRESET_HOLD_MS      = 700;
+constexpr uint32_t PRESET_STATUS_MS    = 1000;
 
 // MIDI CC defaults (14-20)
 constexpr uint8_t CC_TIME    = 14;

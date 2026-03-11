@@ -26,6 +26,7 @@ CPP_SOURCES = \
     src/modes/mode_registry.cpp \
     src/midi/midi_handler.cpp \
     src/display/display_manager.cpp \
+    src/presets/preset_manager.cpp \
     src/tempo/tap_tempo.cpp \
     src/tempo/tempo_sync.cpp
 

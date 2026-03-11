@@ -13,68 +13,104 @@
 #include "midi/midi_handler.h"
 #include "display/display_manager.h"
 #include "tempo/tempo_sync.h"
+#include "presets/preset_manager.h"
 
 using namespace daisy;
 
-// ── Hardware objects ──────────────────────────────────────────────────────────
+// -- Hardware objects ---------------------------------------------------------
 static DaisySeed hw;
 static GPIO      relay;
 static GPIO      led_bypass;
 
-// ── Subsystem singletons ──────────────────────────────────────────────────────
-static pedal::Controls        controls;
-static pedal::AudioEngine     audio_engine;
-static pedal::ModeRegistry    mode_registry;
+// -- Subsystem singletons -----------------------------------------------------
+static pedal::Controls         controls;
+static pedal::AudioEngine      audio_engine;
+static pedal::ModeRegistry     mode_registry;
 static pedal::MidiHandlerPedal midi_handler;
-static pedal::DisplayManager  display;
-static pedal::TempoSync       tempo_sync;
+static pedal::DisplayManager   display;
+static pedal::TempoSync        tempo_sync;
+static pedal::PresetManager    preset_manager;
 
-// ── Mutable main-loop state ───────────────────────────────────────────────────
-static pedal::DelayModeId current_mode  = pedal::DelayModeId::Digital;
-static pedal::Bypass      bypass_disp;  // authoritative bypass state object
+// -- Mutable main-loop state --------------------------------------------------
+static pedal::DelayModeId current_mode = pedal::DelayModeId::Digital;
+static pedal::Bypass      bypass_disp;
 
-// MIDI CC override table: one slot per pot, -1.0f signals "no override active".
-static float midi_cc_val[pedal::NUM_POTS];
-static bool  midi_cc_active[pedal::NUM_POTS];
+namespace {
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+struct ParamEditState {
+    float norm[pedal::NUM_PARAMS];
+};
 
-/// Build an immutable ParamSet from the current control and MIDI state.
-/// MIDI CC values take priority over pot positions when active.
-/// @param ctrl           Smoothed pot + button readings from this iteration.
-/// @param mode           Active delay mode (used for per-mode param ranges).
-/// @param time_override  Seconds from TempoSync, or -1 when no sync is active.
-static pedal::ParamSet BuildParams(const pedal::ControlState& ctrl,
-                                   pedal::DelayModeId          mode,
-                                   float                       time_override) {
-    using namespace pedal;
+static float Clamp01(float v) {
+    if (v < 0.0f) {
+        return 0.0f;
+    }
+    if (v > 1.0f) {
+        return 1.0f;
+    }
+    return v;
+}
 
-    // Resolve the effective normalised value for each pot.
-    float norm[NUM_POTS];
-    for (int i = 0; i < NUM_POTS; ++i) {
-        norm[i] = midi_cc_active[i] ? midi_cc_val[i] : ctrl.pot_normalized[i];
+static void InitDefaultParamNorm(ParamEditState& st) {
+    st.norm[0] = 0.5f;
+    st.norm[1] = 0.4f;
+    st.norm[2] = 0.5f;
+    st.norm[3] = 0.5f;
+    st.norm[4] = 0.0f;
+    st.norm[5] = 0.5f;
+    st.norm[6] = 0.0f;
+}
+
+static int WrapSlotIndex(int slot) {
+    if (slot < 0) {
+        return pedal::PRESET_SLOT_COUNT - 1;
+    }
+    if (slot >= pedal::PRESET_SLOT_COUNT) {
+        return 0;
+    }
+    return slot;
+}
+
+static void ApplyEncoderEdit(float& target,
+                             int delta,
+                             uint32_t now,
+                             uint32_t& last_tick_ms) {
+    if (delta == 0) {
+        return;
     }
 
-    // Map through per-mode, per-parameter curves and ranges.
-    ParamSet ps;
-    ps.time    = map_param(norm[0], get_param_range(mode, ParamId::Time));
-    ps.repeats = map_param(norm[1], get_param_range(mode, ParamId::Repeats));
-    ps.mix     = map_param(norm[2], get_param_range(mode, ParamId::Mix));
-    ps.filter  = map_param(norm[3], get_param_range(mode, ParamId::Filter));
-    ps.grit    = map_param(norm[4], get_param_range(mode, ParamId::Grit));
-    ps.mod_spd = map_param(norm[5], get_param_range(mode, ParamId::ModSpd));
-    ps.mod_dep = map_param(norm[6], get_param_range(mode, ParamId::ModDep));
+    const int dir   = (delta > 0) ? 1 : -1;
+    int       steps = (delta > 0) ? delta : -delta;
+    while (steps-- > 0) {
+        const bool fast = (last_tick_ms != 0)
+                       && (now - last_tick_ms <= pedal::ENCODER_FAST_WINDOW_MS);
+        const float step = fast ? pedal::PARAM_STEP_FAST : pedal::PARAM_STEP_SLOW;
+        target           = Clamp01(target + (dir > 0 ? step : -step));
+        last_tick_ms     = now;
+    }
+}
 
-    // Tap/MIDI tempo overrides the time pot when active.
+static pedal::ParamSet BuildParams(const ParamEditState& edit,
+                                   pedal::DelayModeId    mode,
+                                   float                 time_override) {
+    using namespace pedal;
+
+    ParamSet ps;
+    ps.time    = map_param(edit.norm[0], get_param_range(mode, ParamId::Time));
+    ps.repeats = map_param(edit.norm[1], get_param_range(mode, ParamId::Repeats));
+    ps.mix     = map_param(edit.norm[2], get_param_range(mode, ParamId::Mix));
+    ps.filter  = map_param(edit.norm[3], get_param_range(mode, ParamId::Filter));
+    ps.grit    = map_param(edit.norm[4], get_param_range(mode, ParamId::Grit));
+    ps.mod_spd = map_param(edit.norm[5], get_param_range(mode, ParamId::ModSpd));
+    ps.mod_dep = map_param(edit.norm[6], get_param_range(mode, ParamId::ModDep));
+
     if (time_override > 0.0f) {
-        // Clamp to the maximum supported delay length.
         ps.time = (time_override < 3.0f) ? time_override : 3.0f;
     }
 
     return ps;
 }
 
-/// Switch to a new mode, resetting its DSP state and informing the engine.
 static void ActivateMode(pedal::DelayModeId new_id) {
     if (new_id == current_mode) {
         return;
@@ -85,77 +121,157 @@ static void ActivateMode(pedal::DelayModeId new_id) {
     audio_engine.SetMode(m);
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
+} // namespace
 
 int main() {
-    // ── Hardware init ─────────────────────────────────────────────────────────
     hw.Init();
     hw.SetAudioBlockSize(pedal::BLOCK_SIZE);
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    relay.Init(pedal::pins::RELAY,      GPIO::Mode::OUTPUT);
+    relay.Init(pedal::pins::RELAY, GPIO::Mode::OUTPUT);
     led_bypass.Init(pedal::pins::LED_BYPASS, GPIO::Mode::OUTPUT);
 
-    // ── Subsystem init ────────────────────────────────────────────────────────
     controls.Init(hw);
     mode_registry.Init();
     audio_engine.Init(&hw);
     midi_handler.Init();
     display.Init();
     tempo_sync.Init();
+    preset_manager.Init(hw);
 
-    // ── MIDI CC override initialisation ──────────────────────────────────────
-    for (int i = 0; i < pedal::NUM_POTS; ++i) {
-        midi_cc_val[i]    = 0.0f;
-        midi_cc_active[i] = false;
+    ParamEditState param_edit{};
+    InitDefaultParamNorm(param_edit);
+
+    pedal::DelayModeId boot_mode = current_mode;
+    float              boot_norm[pedal::NUM_PARAMS]{};
+    if (preset_manager.LoadActive(boot_mode, boot_norm)) {
+        current_mode = boot_mode;
+        for (int i = 0; i < pedal::NUM_PARAMS; ++i) {
+            param_edit.norm[i] = Clamp01(boot_norm[i]);
+        }
     }
 
-    // ── Initial bypass state: pedal starts Active (processing) ───────────────
-    bypass_disp.Init(); // Init() sets state to Active
-    audio_engine.SetBypass(false); // false = not bypassed = processing
-    relay.Write(true);             // relay energised → signal routed through
-    led_bypass.Write(true);        // LED on → pedal is active
+    bypass_disp.Init();
+    audio_engine.SetBypass(false);
+    relay.Write(true);
+    led_bypass.Write(true);
 
-    // ── Set initial mode ──────────────────────────────────────────────────────
     pedal::DelayMode* initial_mode = mode_registry.get(current_mode);
     initial_mode->Reset();
     audio_engine.SetMode(initial_mode);
 
-    // ── Start audio interrupt ─────────────────────────────────────────────────
     hw.StartAudio(pedal::AudioEngine::AudioCallback);
 
-    // ── Main loop ─────────────────────────────────────────────────────────────
+    uint32_t param_last_tick_ms[pedal::NUM_PARAMS]{};
+    bool     preset_tap_chord_active = false;
+    bool     preset_long_fired       = false;
+    pedal::DisplayManager::PresetUiEvent preset_event
+        = pedal::DisplayManager::PresetUiEvent::None;
+    uint32_t preset_event_until = 0;
+
     while (true) {
         const uint32_t now = System::GetNow();
 
-        // -- Poll controls ----------------------------------------------------
         controls.Poll();
         const pedal::ControlState& ctrl = controls.state();
 
-        // -- Encoder: cycle through delay modes --------------------------------
-        if (ctrl.encoder_increment != 0) {
-            int idx = static_cast<int>(current_mode) + ctrl.encoder_increment;
-            if (idx < 0)                      idx = pedal::NUM_MODES - 1;
-            if (idx >= pedal::NUM_MODES)       idx = 0;
-            ActivateMode(static_cast<pedal::DelayModeId>(idx));
+        // Mode encoder controls preset slot while held, else delay mode.
+        if (ctrl.mode_encoder_increment != 0) {
+            if (ctrl.mode_encoder_held) {
+                int slot = preset_manager.GetActiveSlot();
+                int inc  = ctrl.mode_encoder_increment;
+                const int dir = inc > 0 ? 1 : -1;
+                while (inc != 0) {
+                    slot = WrapSlotIndex(slot + dir);
+                    inc -= dir;
+                }
+                preset_manager.SetActiveSlot(slot);
+            } else {
+                int idx = static_cast<int>(current_mode) + ctrl.mode_encoder_increment;
+                if (idx < 0) {
+                    idx = pedal::NUM_MODES - 1;
+                }
+                if (idx >= pedal::NUM_MODES) {
+                    idx = 0;
+                }
+                ActivateMode(static_cast<pedal::DelayModeId>(idx));
+            }
         }
 
-        // -- Bypass footswitch: toggle on rising edge -------------------------
+        // 4 parameter encoders with shift layer for the last 3 params.
+        for (int e = 0; e < 4; ++e) {
+            const int delta = ctrl.param_encoder_increment[e];
+            if (delta == 0) {
+                continue;
+            }
+
+            int param_index = -1;
+            if (!ctrl.mode_encoder_held) {
+                static const int kPrimaryMap[4] = {0, 1, 2, 3};
+                param_index = kPrimaryMap[e];
+            } else {
+                static const int kShiftMap[4] = {4, 5, 6, -1};
+                param_index = kShiftMap[e];
+            }
+
+            if (param_index >= 0 && param_index < pedal::NUM_PARAMS) {
+                ApplyEncoderEdit(param_edit.norm[param_index],
+                                 delta,
+                                 now,
+                                 param_last_tick_ms[param_index]);
+            }
+        }
+
         if (ctrl.bypass_pressed) {
             bypass_disp.Toggle();
             const bool active = bypass_disp.IsActive();
-            // audio_engine: true = bypassed (dry through), false = processing
             audio_engine.SetBypass(!active);
-            relay.Write(active);      // relay on when pedal is active
-            led_bypass.Write(active); // LED on when pedal is active
+            relay.Write(active);
+            led_bypass.Write(active);
         }
 
-        // -- Tap tempo footswitch ---------------------------------------------
+        // Chorded preset actions: hold mode-encoder switch + use tap switch.
         if (ctrl.tap_pressed) {
-            tempo_sync.OnTap(now);
+            if (ctrl.mode_encoder_held) {
+                preset_tap_chord_active = true;
+                preset_long_fired       = false;
+            } else {
+                tempo_sync.OnTap(now);
+            }
         }
 
-        // -- Poll MIDI --------------------------------------------------------
+        if (preset_tap_chord_active
+            && ctrl.tap_held
+            && !preset_long_fired
+            && ctrl.tap_held_ms >= pedal::PRESET_HOLD_MS) {
+            if (preset_manager.SaveSlot(preset_manager.GetActiveSlot(),
+                                        current_mode,
+                                        param_edit.norm)) {
+                preset_event       = pedal::DisplayManager::PresetUiEvent::Saved;
+                preset_event_until = now + pedal::PRESET_STATUS_MS;
+            }
+            preset_long_fired = true;
+        }
+
+        if (preset_tap_chord_active && ctrl.tap_released) {
+            if (!preset_long_fired) {
+                pedal::DelayModeId loaded_mode = current_mode;
+                float              loaded_norm[pedal::NUM_PARAMS]{};
+                if (preset_manager.LoadSlot(preset_manager.GetActiveSlot(),
+                                            loaded_mode,
+                                            loaded_norm)) {
+                    for (int i = 0; i < pedal::NUM_PARAMS; ++i) {
+                        param_edit.norm[i] = Clamp01(loaded_norm[i]);
+                    }
+                    ActivateMode(loaded_mode);
+                    preset_event       = pedal::DisplayManager::PresetUiEvent::Loaded;
+                    preset_event_until = now + pedal::PRESET_STATUS_MS;
+                }
+            }
+            preset_tap_chord_active = false;
+            preset_long_fired       = false;
+        }
+
         pedal::MidiState midi_state{};
         midi_handler.Poll(midi_state);
 
@@ -166,35 +282,38 @@ int main() {
             tempo_sync.OnMidiStop();
         }
 
-        // Program change: select mode by program number (0-9).
-        if (midi_state.program_change >= 0 &&
-            midi_state.program_change < pedal::NUM_MODES) {
-            ActivateMode(
-                static_cast<pedal::DelayModeId>(midi_state.program_change));
+        if (midi_state.program_change >= 0
+            && midi_state.program_change < pedal::NUM_MODES) {
+            ActivateMode(static_cast<pedal::DelayModeId>(midi_state.program_change));
         }
 
-        // Latch incoming CC values; once a CC arrives for a slot, the pot for
-        // that slot is superseded until the next power cycle.
-        // Use cc_received (not cc_normalized > 0) so a CC value of 0 also latches.
-        for (int i = 0; i < pedal::NUM_POTS; ++i) {
+        // MIDI CC writes directly into editable normalized state.
+        for (int i = 0; i < pedal::NUM_PARAMS; ++i) {
             if (midi_state.cc_received[i]) {
-                midi_cc_val[i]    = midi_state.cc_normalized[i];
-                midi_cc_active[i] = true;
+                param_edit.norm[i] = Clamp01(midi_state.cc_normalized[i]);
             }
         }
 
-        // -- Tempo sync process (handles MIDI clock timeout) ------------------
         tempo_sync.Process(now);
 
-        // -- Build and push parameters to audio engine ------------------------
         const float time_override = tempo_sync.GetOverrideSeconds();
-        const pedal::ParamSet params = BuildParams(ctrl, current_mode, time_override);
+        const pedal::ParamSet params = BuildParams(param_edit, current_mode, time_override);
         audio_engine.SetParams(params);
 
-        // -- Update display at ~30 fps ----------------------------------------
-        display.Update(current_mode, params, bypass_disp, tempo_sync, now);
+        if (preset_event != pedal::DisplayManager::PresetUiEvent::None
+            && now >= preset_event_until) {
+            preset_event = pedal::DisplayManager::PresetUiEvent::None;
+        }
 
-        // Yield a millisecond so the idle loop does not starve the USB stack.
+        display.Update(current_mode,
+                       params,
+                       bypass_disp,
+                       tempo_sync,
+                       preset_manager.GetActiveSlot(),
+                       ctrl.mode_encoder_held,
+                       preset_event,
+                       now);
+
         System::Delay(1);
     }
 }
