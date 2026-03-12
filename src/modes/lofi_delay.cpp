@@ -10,6 +10,7 @@ static DelayLineSdram       lofi_line;
 
 void LofiDelay::Init() {
     lofi_line.Init(lofi_buf, MAX_DELAY_SAMPLES);
+    lfo_.Init(1.0f, LfoWave::Triangle);
     dc_.Init();
     held_sample_ = 0.0f;
     sr_counter_  = 0.0f;
@@ -26,6 +27,8 @@ void LofiDelay::Reset() {
 }
 
 void LofiDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
+
     // bits range: 16 (grit=0) down to 4 (grit=1)
     bits_ = 16 - static_cast<int>(params.grit * 12.0f);
     if (bits_ < 1) bits_ = 1;
@@ -36,7 +39,15 @@ void LofiDelay::Prepare(const ParamSet& params) {
 }
 
 StereoFrame LofiDelay::Process(float input, const ParamSet& params) {
-    const float delay_samps = params.time * SAMPLE_RATE;
+    const float lfo_val    = lfo_.Process(); // -1..+1
+    const float base_samps = params.time * SAMPLE_RATE;
+    float delay_samps      = base_samps + lfo_val * (params.mod_dep * 20.0f);
+    if (delay_samps < 1.0f) {
+        delay_samps = 1.0f;
+    }
+    if (delay_samps > static_cast<float>(MAX_DELAY_SAMPLES - 1)) {
+        delay_samps = static_cast<float>(MAX_DELAY_SAMPLES - 1);
+    }
     lofi_line.SetDelay(delay_samps);
 
     float wet = lofi_line.Read();

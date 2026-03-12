@@ -12,6 +12,7 @@ static DelayLineSdram       dual_line_r;
 void DualDelay::Init() {
     dual_line_l.Init(dual_buf_l, MAX_DELAY_SAMPLES);
     dual_line_r.Init(dual_buf_r, MAX_DELAY_SAMPLES);
+    lfo_.Init(1.0f, LfoWave::Sine);
     filter_l_.Init();
     filter_r_.Init();
     filter_l_.SetKnob(0.5f);
@@ -28,15 +29,19 @@ void DualDelay::Reset() {
 }
 
 void DualDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
     filter_l_.SetKnob(params.filter);
     filter_r_.SetKnob(params.filter);
 }
 
 StereoFrame DualDelay::Process(float input, const ParamSet& params) {
     // Left: base delay time
-    // Right: detuned by mod_dep (0 = same, 1 = 50% longer)
+    // Right: detuned by mod_dep and animated by mod_spd.
+    const float lfo_val = lfo_.Process(); // -1..+1
     const float delay_l = params.time * SAMPLE_RATE;
-    const float delay_r = params.time * SAMPLE_RATE * (1.0f + params.mod_dep * 0.5f);
+    const float detune_ratio = 1.0f
+                             + params.mod_dep * (0.25f + 0.25f * (0.5f + 0.5f * lfo_val));
+    const float delay_r = params.time * SAMPLE_RATE * detune_ratio;
 
     dual_line_l.SetDelay(delay_l);
     dual_line_r.SetDelay(delay_r);

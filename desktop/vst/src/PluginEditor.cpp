@@ -54,7 +54,7 @@ void DelayPluginEditor::paint(juce::Graphics& g) {
 
     g.setColour(juce::Colours::white);
     g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
-    g.drawText("Daisy Delay", 16, 10, 220, 30, juce::Justification::left);
+    g.drawText("BB DigitDelay", 16, 10, 220, 30, juce::Justification::left);
 
     g.setColour(juce::Colour::fromRGB(70, 76, 90));
     g.drawLine(16.0f, 46.0f, (float)getWidth() - 16.0f, 46.0f, 1.0f);

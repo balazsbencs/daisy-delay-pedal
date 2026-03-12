@@ -1,5 +1,6 @@
 #pragma once
 #include "delay_mode.h"
+#include "../dsp/lfo.h"
 #include "../dsp/dc_blocker.h"
 
 namespace pedal {
@@ -13,6 +14,7 @@ public:
     const char* Name() const override { return "Lofi"; }
 
 private:
+    Lfo       lfo_;
     DcBlocker dc_;
 
     // Sample-rate reduction and bitcrush state

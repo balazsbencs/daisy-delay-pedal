@@ -12,6 +12,7 @@ static DelayLineSdram       pattern_line;
 
 void PatternDelay::Init() {
     pattern_line.Init(pattern_buf, MAX_DELAY_SAMPLES);
+    lfo_.Init(1.0f, LfoWave::Sine);
     filter_.Init();
     filter_.SetKnob(0.5f);
     dc_.Init();
@@ -23,11 +24,14 @@ void PatternDelay::Reset() {
 }
 
 void PatternDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
     filter_.SetKnob(params.filter);
 }
 
 StereoFrame PatternDelay::Process(float input, const ParamSet& params) {
-    const float base_samps = params.time * SAMPLE_RATE;
+    const float lfo_val    = lfo_.Process(); // -1..+1
+    const float base_samps = params.time * SAMPLE_RATE
+                           + lfo_val * (params.mod_dep * 25.0f);
 
     // Select pattern: grit 0..0.333 -> 0, 0.333..0.667 -> 1, 0.667..1 -> 2
     const int pat_idx = [&]() -> int {

@@ -1,5 +1,6 @@
 #pragma once
 #include "delay_mode.h"
+#include "../dsp/lfo.h"
 #include "../dsp/tone_filter.h"
 #include "../dsp/dc_blocker.h"
 
@@ -14,6 +15,7 @@ public:
     const char* Name() const override { return "Dual"; }
 
 private:
+    Lfo        lfo_;
     ToneFilter filter_l_;
     ToneFilter filter_r_;
     DcBlocker  dc_l_;

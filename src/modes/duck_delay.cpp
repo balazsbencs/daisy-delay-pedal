@@ -9,6 +9,7 @@ static DelayLineSdram       duck_line;
 
 void DuckDelay::Init() {
     duck_line.Init(duck_buf, MAX_DELAY_SAMPLES);
+    lfo_.Init(1.0f, LfoWave::Sine);
     // Moderate attack, slower release for smooth ducking
     follower_.Init(10.0f, 150.0f);
     filter_.Init();
@@ -22,11 +23,20 @@ void DuckDelay::Reset() {
 }
 
 void DuckDelay::Prepare(const ParamSet& params) {
+    lfo_.SetRate(params.mod_spd);
     filter_.SetKnob(params.filter);
 }
 
 StereoFrame DuckDelay::Process(float input, const ParamSet& params) {
-    const float delay_samps = params.time * SAMPLE_RATE;
+    const float lfo_val    = lfo_.Process(); // -1..+1
+    const float base_samps = params.time * SAMPLE_RATE;
+    float delay_samps      = base_samps + lfo_val * (params.mod_dep * 15.0f);
+    if (delay_samps < 1.0f) {
+        delay_samps = 1.0f;
+    }
+    if (delay_samps > static_cast<float>(MAX_DELAY_SAMPLES - 1)) {
+        delay_samps = static_cast<float>(MAX_DELAY_SAMPLES - 1);
+    }
     duck_line.SetDelay(delay_samps);
 
     // grit controls duck threshold depth: 0=no duck, 1=full duck

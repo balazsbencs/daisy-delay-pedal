@@ -27,10 +27,18 @@ void SwellDelay::Reset() {
 }
 
 void SwellDelay::Prepare(const ParamSet& params) {
-    // mod_spd controls attack rate (samples to full), mod_dep controls decay rate
-    // Higher mod_spd = faster attack; use it as a per-sample increment coefficient
-    attack_rate_ = params.mod_spd * INV_SAMPLE_RATE;  // fraction/sample
-    decay_rate_  = params.mod_dep * INV_SAMPLE_RATE;
+    // Map modulation controls to musically useful AD envelope times.
+    // mod_spd (0.05..10 Hz) -> attack time ~1.5s .. 0.02s
+    float mod_spd_norm = (params.mod_spd - 0.05f) / (10.0f - 0.05f);
+    if (mod_spd_norm < 0.0f) mod_spd_norm = 0.0f;
+    if (mod_spd_norm > 1.0f) mod_spd_norm = 1.0f;
+    const float attack_time_s = 1.5f - 1.48f * mod_spd_norm;
+
+    // mod_dep (0..1) -> decay time ~2.5s .. 0.08s
+    const float decay_time_s  = 2.5f - 2.42f * params.mod_dep;
+
+    attack_rate_ = 1.0f / (attack_time_s * SAMPLE_RATE);
+    decay_rate_  = 1.0f / (decay_time_s * SAMPLE_RATE);
 }
 
 StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
