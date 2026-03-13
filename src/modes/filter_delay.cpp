@@ -1,7 +1,7 @@
 #include "filter_delay.h"
 #include "../dsp/delay_line_sdram.h"
+#include "../dsp/fast_math.h"
 #include "../config/constants.h"
-#include <cmath>
 
 namespace pedal {
 
@@ -38,7 +38,7 @@ void FilterDelay::Prepare(const ParamSet& params) {
     if (cutoff_hz < 40.0f)    cutoff_hz = 40.0f;
     if (cutoff_hz > 10000.0f) cutoff_hz = 10000.0f;
 
-    svf_f_ = 2.0f * sinf(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
+    svf_f_ = 2.0f * fast_sin(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
     if (svf_f_ > 1.7f) svf_f_ = 1.7f;
 
     // Damping q: 0 = self-oscillate, 2 = critically damped.

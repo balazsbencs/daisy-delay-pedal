@@ -1,5 +1,6 @@
 #include "audio_engine.h"
 #include "util/scopedirqblocker.h"
+#include "../dsp/fast_math.h"
 
 using namespace daisy;
 
@@ -80,8 +81,8 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
     if (params.mix != last_mix_) {
         last_mix_             = params.mix;
         const float angle     = params.mix * 1.57079632679f; // pi/2
-        mix_dry_              = cosf(angle);
-        mix_wet_              = sinf(angle);
+        mix_dry_              = fast_cos(angle);
+        mix_wet_              = fast_sin(angle);
         const float gain_sum  = mix_dry_ + mix_wet_;
         mix_norm_             = (gain_sum > 1.0f) ? (1.0f / gain_sum) : 1.0f;
     }

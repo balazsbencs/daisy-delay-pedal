@@ -39,6 +39,11 @@ DAISYSP_DIR  = third_party/DaisySP
 # relative to the src/ root without needing ../.. traversal.
 C_INCLUDES += -Isrc
 
+# ── Compiler optimisation ─────────────────────────────────────────────────────
+# Override libDaisy's default -O2 with size-optimised build.
+# Suppresses loop unrolling and aggressive inlining that inflate flash.
+OPT = -Os
+
 # ── Pull in the libDaisy build system ─────────────────────────────────────────
 # This Makefile fragment defines the compiler toolchain, linker script,
 # flash/debug targets, and all required flags for the STM32H750.

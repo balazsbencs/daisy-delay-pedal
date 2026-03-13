@@ -17,7 +17,7 @@ void Lfo::SetRate(float rate_hz) {
 static float lfo_compute(float phase, LfoWave wave) {
     switch (wave) {
         case LfoWave::Sine:
-            return sinf(phase);
+            return fast_sin(phase);
         case LfoWave::Triangle:
             return (phase < 3.14159265f)
                 ? (-1.0f + phase * (2.0f / 3.14159265f))

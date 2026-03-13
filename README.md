@@ -208,6 +208,7 @@ delay/
 │   │   ├── delay_line_sdram.h/.cpp   # SDRAM-backed delay line
 │   │   ├── dc_blocker.h              # One-pole DC blocker
 │   │   ├── envelope_follower.h/.cpp  # Attack/release envelope
+│   │   ├── fast_math.h               # fast_sin / fast_cos polynomial (no libm)
 │   │   ├── lfo.h/.cpp                # Sine/triangle LFO
 │   │   ├── tone_filter.h/.cpp        # One-knob LP/HP filter
 │   │   └── saturation.h              # Soft-clip saturation
@@ -297,15 +298,28 @@ Tap/MIDI Clock ──► TempoSync ──► time override
 
 ## Flash Usage
 
-As of the initial build:
-
 ```
-FLASH:   92.88%  (121 KB / 128 KB)
-SRAM:    20.10%  (105 KB / 512 KB)
+FLASH:   88.65%  (~114 KB / 128 KB)
+SRAM:    19.95%  (~102 KB / 512 KB)
 SDRAM:    9.44%  (6.3 MB / 64 MB)
 ```
 
-Flash is tight. If adding features, consider:
-- Enabling link-time optimization (`OPT = -O2 -flto` in Makefile)
-- Moving string literals to flash with `const char* __attribute__((section(".rodata")))`
-- Booting from QSPI flash (8 MB available) for much more room
+### Flash optimisations applied
+
+| Change | Saving |
+|--------|--------|
+| `-Os` instead of `-O2` (suppresses loop unrolling / aggressive inlining) | ~5 KB |
+| `fast_sin` / `fast_cos` polynomial replacing libm `sinf` / `cosf` | ~2.5 KB |
+| **Total recovered** | **~7.5 KB** |
+
+`fast_sin` is a 5th-order polynomial accurate to ±0.5 % — sufficient for LFO
+and filter-coefficient use.  It lives in `src/dsp/fast_math.h`.
+
+### If you need more room
+
+- **LTO** (`CPPFLAGS += -flto` + `LDFLAGS += -flto`): 10–20 % saving but
+  requires verifying `DSY_SDRAM_BSS` buffers still land in the correct section
+  (check the `.map` file after enabling).
+- **QSPI boot**: the on-board 8 MB QSPI flash is effectively unlimited for
+  this codebase; relocating the firmware there removes the 128 KB constraint
+  entirely.

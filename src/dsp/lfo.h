@@ -1,6 +1,6 @@
 #pragma once
 #include "../config/constants.h"
-#include <cmath>
+#include "fast_math.h"
 
 namespace pedal {
 
