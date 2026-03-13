@@ -76,12 +76,15 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
     DelayMode*      mode   = mode_;
 
     // Constant-power mixing: sin/cos mapping avoids the -3dB dip at 50/50 mix.
-    const float angle = params.mix * 1.57079632679f; // pi/2
-    mix_dry_          = cosf(angle);
-    mix_wet_          = sinf(angle);
-    // Keep unity upper bound when dry/wet are strongly correlated.
-    const float gain_sum = mix_dry_ + mix_wet_;
-    mix_norm_            = (gain_sum > 1.0f) ? (1.0f / gain_sum) : 1.0f;
+    // Recompute only when mix changes; trig is expensive on Cortex-M7.
+    if (params.mix != last_mix_) {
+        last_mix_             = params.mix;
+        const float angle     = params.mix * 1.57079632679f; // pi/2
+        mix_dry_              = cosf(angle);
+        mix_wet_              = sinf(angle);
+        const float gain_sum  = mix_dry_ + mix_wet_;
+        mix_norm_             = (gain_sum > 1.0f) ? (1.0f / gain_sum) : 1.0f;
+    }
 
     if (mode != nullptr) {
         mode->Prepare(params);

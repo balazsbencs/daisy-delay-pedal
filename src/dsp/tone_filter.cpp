@@ -9,6 +9,9 @@ void ToneFilter::Init() {
 }
 
 void ToneFilter::SetKnob(float knob) {
+    if (knob == last_knob_) return;
+    last_knob_ = knob;
+
     // Lower half (0..0.5): pure LP, cutoff sweeps 200 Hz → 8000 Hz, no HP.
     // Upper half (0.5..1): LP cutoff continues 8000 Hz → 20000 Hz (effectively
     // open), HP fades in from 20 Hz → 3000 Hz. LP cutoff is continuous across

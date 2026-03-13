@@ -13,8 +13,9 @@ public:
 
 private:
     // One-pole LP and HP combined
-    float lp_coef_ = 0.0f;  // LP coefficient
-    float hp_coef_ = 0.0f;  // HP coefficient
+    float last_knob_ = -1.0f; // sentinel: forces recompute on first call
+    float lp_coef_ = 0.0f;   // LP coefficient
+    float hp_coef_ = 0.0f;   // HP coefficient
     float lp_mix_  = 1.0f;  // mix between LP and HP output
     float hp_mix_  = 0.0f;
     float lp_state_ = 0.0f;

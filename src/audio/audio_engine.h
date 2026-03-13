@@ -68,9 +68,10 @@ private:
     bool         new_bypass_   = true;
     volatile bool bypass_dirty_ = false;
 
-    // Precalculated mixing gains
-    float mix_dry_ = 1.0f;
-    float mix_wet_ = 0.0f;
+    // Precalculated mixing gains (recomputed only when mix changes)
+    float last_mix_ = -1.0f;  // sentinel: forces recompute on first block
+    float mix_dry_  = 1.0f;
+    float mix_wet_  = 0.0f;
     float mix_norm_ = 1.0f;
 };
 
