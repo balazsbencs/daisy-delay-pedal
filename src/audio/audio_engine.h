@@ -43,10 +43,9 @@ public:
                               daisy::AudioHandle::OutputBuffer out,
                               size_t                           size);
 
-    /// Singleton accessor used by the static callback.
-    static AudioEngine* instance_;
-
 private:
+    /// Singleton pointer; written by Init(), read only by the static callback.
+    static AudioEngine* instance_;
     /// Per-block DSP dispatch; called exclusively from the ISR.
     void ProcessBlock(daisy::AudioHandle::InputBuffer  in,
                       daisy::AudioHandle::OutputBuffer out,

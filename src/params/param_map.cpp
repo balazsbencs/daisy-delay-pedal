@@ -17,7 +17,7 @@ const ParamRange& get_param_range(DelayModeId mode, ParamId param) {
         case ParamId::Grit:    return default_ranges::GRIT;
         case ParamId::ModSpd:  return default_ranges::MOD_SPD;
         case ParamId::ModDep:  return default_ranges::MOD_DEP;
-        default:               return default_ranges::MIX;
+        default:               return default_ranges::MIX; // unreachable; all ParamId values listed above
     }
 }
 

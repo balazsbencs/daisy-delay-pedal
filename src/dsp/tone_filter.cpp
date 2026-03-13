@@ -9,6 +9,8 @@ void ToneFilter::Init() {
 }
 
 void ToneFilter::SetKnob(float knob) {
+    // Float equality is intentional: knob comes from a quantized pot/param
+    // value, not from arithmetic, so bit-identical repeats are expected.
     if (knob == last_knob_) return;
     last_knob_ = knob;
 

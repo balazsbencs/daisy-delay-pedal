@@ -14,6 +14,9 @@ void LofiDelay::Init() {
     dc_.Init();
     held_sample_ = 0.0f;
     sr_counter_  = 0.0f;
+    bits_        = 16;
+    bit_scale_   = 65536.0f;
+    decimate_    = 1.0f;
 }
 
 void LofiDelay::Reset() {
