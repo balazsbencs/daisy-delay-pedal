@@ -59,6 +59,12 @@ StereoFrame FilterDelay::Process(float input, const ParamSet& params) {
     // Output is low-pass
     wet = lp;
 
+    // Hard-clamp before feedback: near self-oscillation (low q) the SVF output
+    // can far exceed ±1.0, and writing that back into the delay line without a
+    // guard causes exponential runaway.
+    if (wet >  1.0f) wet =  1.0f;
+    if (wet < -1.0f) wet = -1.0f;
+
     const float feedback = wet * params.repeats;
     filter_line.Write(input + feedback);
 
