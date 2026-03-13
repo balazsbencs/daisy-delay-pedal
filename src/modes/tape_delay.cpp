@@ -49,7 +49,10 @@ StereoFrame TapeDelay::Process(float input, const ParamSet& params) {
     wet = sat_.Process(wet * (1.0f + params.grit));
 
     const float feedback = wet * params.repeats;
-    tape_line.Write(input + feedback);
+    float write_val = input + feedback;
+    if (write_val >  1.0f) write_val =  1.0f;
+    if (write_val < -1.0f) write_val = -1.0f;
+    tape_line.Write(write_val);
 
     wet = dc_.Process(wet);
 

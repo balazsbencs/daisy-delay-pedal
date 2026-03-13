@@ -29,7 +29,10 @@ void FilterDelay::Prepare(const ParamSet& params) {
 
     // Move all block-stable and LFO-dependent computations here so
     // Process() runs no transcendental functions per sample.
-    filter_line.SetDelay(params.time * SAMPLE_RATE);
+    float delay_samps = params.time * SAMPLE_RATE;
+    if (delay_samps > static_cast<float>(MAX_DELAY_SAMPLES - 1))
+        delay_samps = static_cast<float>(MAX_DELAY_SAMPLES - 1);
+    filter_line.SetDelay(delay_samps);
 
     float cutoff_hz = 400.0f + lfo_out_ * params.mod_dep * 2000.0f;
     if (cutoff_hz < 40.0f)    cutoff_hz = 40.0f;

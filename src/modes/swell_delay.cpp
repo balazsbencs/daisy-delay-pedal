@@ -42,7 +42,9 @@ void SwellDelay::Prepare(const ParamSet& params) {
 }
 
 StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
-    const float delay_samps = params.time * SAMPLE_RATE;
+    float delay_samps = params.time * SAMPLE_RATE;
+    if (delay_samps > static_cast<float>(MAX_DELAY_SAMPLES - 1))
+        delay_samps = static_cast<float>(MAX_DELAY_SAMPLES - 1);
     swell_line.SetDelay(delay_samps);
 
     // Detect rising edge: envelope crosses threshold upward
