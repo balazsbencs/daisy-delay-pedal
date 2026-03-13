@@ -39,12 +39,14 @@ StereoFrame DualDelay::Process(float input, const ParamSet& params) {
     // Left: base delay time
     // Right: detuned by mod_dep and animated by mod_spd.
     const float lfo_val = lfo_out_;
-    const float delay_l = params.time * SAMPLE_RATE;
+    const float base_samps = params.time * SAMPLE_RATE;
     const float detune_ratio = 1.0f
                              + params.mod_dep * (0.25f + 0.25f * (0.5f + 0.5f * lfo_val));
-    const float delay_r = params.time * SAMPLE_RATE * detune_ratio;
+    float delay_r = base_samps * detune_ratio;
+    if (delay_r > static_cast<float>(MAX_DELAY_SAMPLES - 1))
+        delay_r = static_cast<float>(MAX_DELAY_SAMPLES - 1);
 
-    dual_line_l.SetDelay(delay_l);
+    dual_line_l.SetDelay(base_samps);
     dual_line_r.SetDelay(delay_r);
 
     float wet_l = dual_line_l.Read();
