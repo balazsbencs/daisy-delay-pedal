@@ -22,8 +22,9 @@ static float lfo_compute(float phase, LfoWave wave) {
             return (phase < 3.14159265f)
                 ? (-1.0f + phase * (2.0f / 3.14159265f))
                 : ( 3.0f - phase * (2.0f / 3.14159265f));
+        default:
+            return 0.0f; // unreachable; silences -Wswitch-default
     }
-    return 0.0f;
 }
 
 float Lfo::Process() {
@@ -36,7 +37,9 @@ float Lfo::Process() {
 float Lfo::PrepareBlock() {
     const float out = lfo_compute(phase_, wave_);
     phase_ += phase_inc_ * static_cast<float>(BLOCK_SIZE);
-    if (phase_ >= TWO_PI) phase_ -= TWO_PI;
+    // Use while-loop rather than a single subtract: phase_inc_ * BLOCK_SIZE
+    // can exceed TWO_PI if SetRate() is called with a very high frequency.
+    while (phase_ >= TWO_PI) phase_ -= TWO_PI;
     return out;
 }
 
