@@ -30,4 +30,21 @@ inline float map_param(float normalized, const ParamRange& range) {
     return range.min + curved * (range.max - range.min);
 }
 
+// Inverse of apply_curve
+inline float invert_curve(float curved, float curve) {
+    if (curve == 0.0f) return curved;
+    float exp;
+    if (curve > 0.0f) exp = curve + 1.0f;
+    else              exp = 1.0f / (1.0f - curve);
+    return powf(curved, 1.0f / exp);
+}
+
+// Inverse of map_param: physical value → normalized [0,1]
+inline float unmap_param(float value, const ParamRange& range) {
+    float t = (value - range.min) / (range.max - range.min);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    return invert_curve(t, range.curve);
+}
+
 } // namespace pedal

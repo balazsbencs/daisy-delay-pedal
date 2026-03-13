@@ -38,6 +38,7 @@ public:
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     juce::AudioProcessorValueTreeState& parameters() { return apvts_; }
+    pedal::DelayModeId getCurrentMode() const { return current_mode_; }
 
 private:
     pedal::ParamSet buildParamsFromState() const;

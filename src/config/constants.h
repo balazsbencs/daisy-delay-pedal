@@ -8,7 +8,7 @@ constexpr float  SAMPLE_RATE     = 48000.0f;
 constexpr size_t BLOCK_SIZE      = 48;
 constexpr float  INV_SAMPLE_RATE = 1.0f / SAMPLE_RATE;
 
-// Max delay = 3 seconds at 48kHz
+// Buffer supports up to 3s; delay time range is 60ms–2500ms (2ms min for Lofi)
 constexpr size_t MAX_DELAY_SAMPLES = static_cast<size_t>(SAMPLE_RATE * 3.0f);
 
 // Number of delay modes

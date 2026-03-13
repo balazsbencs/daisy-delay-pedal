@@ -2,9 +2,13 @@
 
 namespace pedal {
 
-const ParamRange& get_param_range(DelayModeId /*mode*/, ParamId param) {
-    // All modes share default ranges for now
-    // Per-mode customization can be added here later
+const ParamRange& get_param_range(DelayModeId mode, ParamId param) {
+    if (param == ParamId::Time) {
+        switch (mode) {
+            case DelayModeId::Lofi: return default_ranges::TIME_LOFI;
+            default:                return default_ranges::TIME;
+        }
+    }
     switch (param) {
         case ParamId::Time:    return default_ranges::TIME;
         case ParamId::Repeats: return default_ranges::REPEATS;

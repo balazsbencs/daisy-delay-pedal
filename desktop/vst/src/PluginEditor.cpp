@@ -1,4 +1,7 @@
 #include "PluginEditor.h"
+#include "params/param_map.h"
+#include "params/param_id.h"
+#include <cmath>
 
 namespace {
 constexpr const char* kParamIds[7] = {
@@ -32,6 +35,19 @@ DelayPluginEditor::DelayPluginEditor(DelayPluginProcessor& p)
 
         k.attach = std::make_unique<SliderAttachment>(apvts, kParamIds[i], k.slider);
     }
+
+    // Time knob (index 0): display mapped ms value instead of raw 0-1
+    knobs_[0].slider.textFromValueFunction = [this](double v) -> juce::String {
+        const auto& range = pedal::get_param_range(processor_.getCurrentMode(), pedal::ParamId::Time);
+        const float ms = pedal::map_param(static_cast<float>(v), range) * 1000.0f;
+        return juce::String(static_cast<int>(std::round(ms))) + " ms";
+    };
+    knobs_[0].slider.valueFromTextFunction = [this](const juce::String& text) -> double {
+        const float ms = text.getFloatValue();
+        const auto& range = pedal::get_param_range(processor_.getCurrentMode(), pedal::ParamId::Time);
+        return static_cast<double>(pedal::unmap_param(ms / 1000.0f, range));
+    };
+    knobs_[0].slider.updateText();
 
     mode_label_.setText("Mode", juce::dontSendNotification);
     mode_label_.setJustificationType(juce::Justification::centredLeft);

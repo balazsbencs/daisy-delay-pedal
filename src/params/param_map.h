@@ -11,7 +11,8 @@ const ParamRange& get_param_range(DelayModeId mode, ParamId param);
 
 // Default ranges used by most modes
 namespace default_ranges {
-    constexpr ParamRange TIME    = {0.01f, 3.0f,  2.0f};  // log
+    constexpr ParamRange TIME      = {0.06f,  2.5f, 2.0f};  // log, 60ms–2500ms
+    constexpr ParamRange TIME_LOFI = {0.002f, 2.5f, 2.0f};  // log, 2ms–2500ms
     constexpr ParamRange REPEATS = {0.0f,  0.98f, 0.0f};  // linear
     constexpr ParamRange MIX     = {0.0f,  1.0f,  0.0f};
     constexpr ParamRange FILTER  = {0.0f,  1.0f,  0.0f};
