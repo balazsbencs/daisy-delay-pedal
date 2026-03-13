@@ -103,7 +103,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             gcc-arm-none-eabi \
             binutils-arm-none-eabi \
-            libnewlib-arm-none-eabi
+            libnewlib-arm-none-eabi \
+            libstdc++-arm-none-eabi-newlib
 
       - name: Get submodule commit hashes
         id: submodule-hashes
