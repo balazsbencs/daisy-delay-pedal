@@ -35,31 +35,26 @@ StereoFrame PatternDelay::Process(float input, const ParamSet& params) {
                            + lfo_val * (params.mod_dep * 25.0f);
 
     // Select pattern: grit 0..0.333 -> 0, 0.333..0.667 -> 1, 0.667..1 -> 2
-    const int pat_idx = [&]() -> int {
-        const int idx = static_cast<int>(params.grit * 3.0f);
-        if (idx < 0) return 0;
-        if (idx > 2) return 2;
-        return idx;
-    }();
+    int pat_idx = static_cast<int>(params.grit * 3.0f);
+    if (pat_idx < 0) pat_idx = 0;
+    if (pat_idx > 2) pat_idx = 2;
 
-    // Sum three rhythmic taps
+    // Sum three rhythmic taps; cache first tap for feedback
     float wet = 0.0f;
+    float first_tap = 0.0f;
     for (int i = 0; i < 3; ++i) {
         float tap_samps = base_samps * PATTERNS[pat_idx][i];
         if (tap_samps < 1.0f)
             tap_samps = 1.0f;
         if (tap_samps > static_cast<float>(MAX_DELAY_SAMPLES - 1))
             tap_samps = static_cast<float>(MAX_DELAY_SAMPLES - 1);
-        wet += pattern_line.ReadAt(tap_samps);
+        const float tap = pattern_line.ReadAt(tap_samps);
+        if (i == 0) first_tap = tap;
+        wet += tap;
     }
     wet *= (1.0f / 3.0f); // normalise sum of taps
 
     wet = filter_.Process(wet);
-
-    // Feedback driven from first tap only
-    const float first_tap_samps = base_samps * PATTERNS[pat_idx][0];
-    const float first_tap       = pattern_line.ReadAt(
-        (first_tap_samps < 1.0f) ? 1.0f : first_tap_samps);
 
     const float feedback = first_tap * params.repeats;
     pattern_line.Write(input + feedback);

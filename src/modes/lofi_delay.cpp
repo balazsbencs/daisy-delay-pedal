@@ -33,7 +33,7 @@ void LofiDelay::Prepare(const ParamSet& params) {
     // bits range: 16 (grit=0) down to 4 (grit=1)
     bits_ = 16 - static_cast<int>(params.grit * 12.0f);
     if (bits_ < 1) bits_ = 1;
-    bit_scale_ = powf(2.0f, static_cast<float>(bits_));
+    bit_scale_ = static_cast<float>(1 << bits_);
 
     // grit=0: decimation factor=1 (passthrough), grit=1: factor=16
     decimate_ = 1.0f + params.grit * 15.0f;
