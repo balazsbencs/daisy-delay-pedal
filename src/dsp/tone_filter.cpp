@@ -9,9 +9,10 @@ void ToneFilter::Init() {
 }
 
 void ToneFilter::SetKnob(float knob) {
-    // LP cutoff: knob 0..0.5 maps 200Hz..8000Hz
-    // HP cutoff: knob 0.5..1.0 maps 200Hz..3000Hz
-    // Mix: 0 = full LP, 0.5 = flat (LP+HP cancel), 1 = full HP
+    // Lower half (0..0.5): pure LP, cutoff sweeps 200 Hz → 8000 Hz, no HP.
+    // Upper half (0.5..1): LP cutoff continues 8000 Hz → 20000 Hz (effectively
+    // open), HP fades in from 20 Hz → 3000 Hz. LP cutoff is continuous across
+    // the boundary (both branches reach 8000 Hz at t=0 / knob=0.5).
     float lp_cutoff, hp_cutoff;
     if (knob <= 0.5f) {
         float t = knob * 2.0f; // 0..1
@@ -20,9 +21,9 @@ void ToneFilter::SetKnob(float knob) {
         lp_mix_ = 1.0f;
         hp_mix_ = 0.0f;
     } else {
-        float t = (knob - 0.5f) * 2.0f; // 0..1
-        lp_cutoff = 20000.0f;
-        hp_cutoff = 20.0f + t * t * 2980.0f; // 20..3000 Hz
+        float t = (knob - 0.5f) * 2.0f;        // 0..1
+        lp_cutoff = 8000.0f + t * 12000.0f;    // 8000..20000 Hz (continuous from lower half)
+        hp_cutoff = 20.0f + t * t * 2980.0f;   // 20..3000 Hz
         lp_mix_ = 1.0f - t;
         hp_mix_ = t;
     }
