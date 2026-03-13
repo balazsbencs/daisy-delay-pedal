@@ -55,11 +55,12 @@ StereoFrame DbucketDelay::Process(float input, const ParamSet& params) {
     float wet = dbucket_line.Read();
     wet       = filter_.Process(wet);
 
-    // Add clock noise proportional to grit
-    wet += next_noise() * params.grit * 0.003f;
-
     const float feedback = wet * params.repeats;
     dbucket_line.Write(input + feedback);
+
+    // Add clock noise to output only — not to the feedback path, so it
+    // does not accumulate in the delay buffer over successive repeats.
+    wet += next_noise() * params.grit * 0.003f;
 
     wet = dc_.Process(wet);
 
