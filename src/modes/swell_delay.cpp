@@ -58,12 +58,7 @@ StereoFrame SwellDelay::Process(float input, const ParamSet& params) {
     // Advance AD state machine
     switch (state_) {
         case SwellState::Idle:
-            // env_gain_ stays at 0; decay down if somehow above
-            if (env_gain_ > 0.0f) {
-                env_gain_ -= decay_rate_;
-                if (env_gain_ < 0.0f) env_gain_ = 0.0f;
-            }
-            break;
+            break; // env_gain_ is always 0 here
 
         case SwellState::Attack:
             env_gain_ += attack_rate_;

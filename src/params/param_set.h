@@ -6,7 +6,7 @@ namespace pedal {
 // Immutable snapshot of all 7 parameters, taken each audio block.
 // All values are in physical units (seconds, 0-1 scalars, Hz, etc.)
 struct ParamSet {
-    float time;     // delay time in seconds (0.01..3.0)
+    float time;     // delay time in seconds (0.06..2.5; Lo-Fi: 0.002..2.5)
     float repeats;  // feedback 0..0.98
     float mix;      // wet/dry 0..1
     float filter;   // filter position 0..1 (0.5=flat, <0.5=LP, >0.5=HP)
