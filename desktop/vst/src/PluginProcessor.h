@@ -41,7 +41,8 @@ public:
     pedal::DelayModeId getCurrentMode() const { return current_mode_; }
 
 private:
-    pedal::ParamSet buildParamsFromState() const;
+    // host_period_s: beat-derived time override in seconds, or -1 if none.
+    pedal::ParamSet buildParamsFromState(float host_period_s) const;
     void ensureModeFromParam();
 
     juce::AudioProcessorValueTreeState apvts_;

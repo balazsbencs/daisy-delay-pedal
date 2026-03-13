@@ -4,13 +4,15 @@
 #include "PluginProcessor.h"
 #include <array>
 
-class DelayPluginEditor : public juce::AudioProcessorEditor {
+class DelayPluginEditor : public juce::AudioProcessorEditor,
+                          public juce::Timer {
 public:
     explicit DelayPluginEditor(DelayPluginProcessor&);
-    ~DelayPluginEditor() override = default;
+    ~DelayPluginEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
 private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -32,6 +34,13 @@ private:
 
     juce::ToggleButton bypass_btn_{"Bypass"};
     std::unique_ptr<ButtonAttachment> bypass_attach_;
+
+    juce::ToggleButton sync_btn_{"Tempo Sync"};
+    std::unique_ptr<ButtonAttachment> sync_attach_;
+
+    juce::ComboBox subdiv_box_;
+    juce::Label    subdiv_label_;
+    std::unique_ptr<ComboAttachment> subdiv_attach_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayPluginEditor)
 };

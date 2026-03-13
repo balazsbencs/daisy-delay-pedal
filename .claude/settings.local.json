@@ -12,7 +12,22 @@
       "Bash(mkdir:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(find /Users/bbalazs/daisy/delay -name \"*.{h,cpp,mm}\" | grep -v third_party | grep -i vst | sort)",
+      "Bash(find /Users/bbalazs/daisy/delay/desktop/vst -name \"*.{h,cpp}\" | grep -v build | sort)",
+      "Bash(find /Users/bbalazs/daisy/delay/desktop/vst -name \"CMakeLists.txt\" | grep -v build | xargs cat 2>/dev/null)",
+      "Bash(git add:*)",
+      "WebFetch(domain:www.strymon.net)",
+      "WebFetch(domain:www.sweetwater.com)",
+      "WebFetch(domain:www.musicradar.com)",
+      "WebFetch(domain:strymon.net)",
+      "WebFetch(domain:www.reddit.com)",
+      "WebFetch(domain:www.thegearpage.net)",
+      "WebFetch(domain:www.andertons.co.uk)",
+      "WebFetch(domain:equipboard.com)",
+      "WebFetch(domain:www.bhphotovideo.com)",
+      "WebFetch(domain:www.premierguitar.com)",
+      "WebFetch(domain:cdn.strymon.net)"
     ]
   }
 }

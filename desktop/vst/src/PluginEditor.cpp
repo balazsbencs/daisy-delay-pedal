@@ -36,8 +36,10 @@ DelayPluginEditor::DelayPluginEditor(DelayPluginProcessor& p)
         k.attach = std::make_unique<SliderAttachment>(apvts, kParamIds[i], k.slider);
     }
 
-    // Time knob (index 0): display mapped ms value instead of raw 0-1
+    // Time knob (index 0): show mapped ms, or "Synced" when tempo sync is on.
     knobs_[0].slider.textFromValueFunction = [this](double v) -> juce::String {
+        if (processor_.parameters().getRawParameterValue("tempo_sync")->load() >= 0.5f)
+            return "Synced";
         const auto& range = pedal::get_param_range(processor_.getCurrentMode(), pedal::ParamId::Time);
         const float ms = pedal::map_param(static_cast<float>(v), range) * 1000.0f;
         return juce::String(static_cast<int>(std::round(ms))) + " ms";
@@ -62,7 +64,33 @@ DelayPluginEditor::DelayPluginEditor(DelayPluginProcessor& p)
     addAndMakeVisible(bypass_btn_);
     bypass_attach_ = std::make_unique<ButtonAttachment>(apvts, "bypass", bypass_btn_);
 
+    addAndMakeVisible(sync_btn_);
+    sync_attach_ = std::make_unique<ButtonAttachment>(apvts, "tempo_sync", sync_btn_);
+
+    subdiv_label_.setText("Subdiv", juce::dontSendNotification);
+    subdiv_label_.setJustificationType(juce::Justification::centredLeft);
+    addAndMakeVisible(subdiv_label_);
+
+    const char* subdivNames[] = { "1/1", "1/2", "1/4.", "1/4", "1/8.", "1/8", "1/8T", "1/16" };
+    for (int i = 0; i < 8; ++i)
+        subdiv_box_.addItem(subdivNames[i], i + 1);
+    addAndMakeVisible(subdiv_box_);
+    subdiv_attach_ = std::make_unique<ComboAttachment>(apvts, "subdivision", subdiv_box_);
+
+    startTimerHz(10); // poll at 10 Hz to sync UI enabled state
     setSize(760, 340);
+}
+
+DelayPluginEditor::~DelayPluginEditor() {
+    stopTimer();
+}
+
+void DelayPluginEditor::timerCallback() {
+    const bool sync_on = processor_.parameters().getRawParameterValue("tempo_sync")->load() >= 0.5f;
+    knobs_[0].slider.setEnabled(!sync_on);
+    subdiv_box_.setEnabled(sync_on);
+    if (sync_on)
+        knobs_[0].slider.updateText(); // refresh "Synced" display
 }
 
 void DelayPluginEditor::paint(juce::Graphics& g) {
@@ -99,4 +127,9 @@ void DelayPluginEditor::resized() {
     mode_box_.setBounds(570, 68, 160, 28);
 
     bypass_btn_.setBounds(570, 112, 120, 28);
+
+    sync_btn_.setBounds(500, 156, 230, 28);
+
+    subdiv_label_.setBounds(500, 200, 60, 20);
+    subdiv_box_.setBounds(565, 196, 165, 28);
 }

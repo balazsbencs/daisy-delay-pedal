@@ -23,6 +23,20 @@ float clamp01(float v) {
     }
     return v;
 }
+
+// Tap-subdivision multipliers relative to one quarter-note beat period.
+// Order must match the choice strings added in createParameterLayout().
+constexpr int kNumSubdivisions = 8;
+constexpr float kSubdivisionFactors[kNumSubdivisions] = {
+    4.0f,           // 1/1   whole note
+    2.0f,           // 1/2   half note
+    1.5f,           // 1/4.  dotted quarter
+    1.0f,           // 1/4   quarter note
+    0.75f,          // 1/8.  dotted eighth
+    0.5f,           // 1/8   eighth note
+    1.0f / 3.0f,    // 1/8T  eighth triplet
+    0.25f,          // 1/16  sixteenth note
+};
 } // namespace
 
 DelayPluginProcessor::DelayPluginProcessor()
@@ -54,7 +68,7 @@ bool DelayPluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
     return true;
 }
 
-pedal::ParamSet DelayPluginProcessor::buildParamsFromState() const {
+pedal::ParamSet DelayPluginProcessor::buildParamsFromState(float host_period_s) const {
     using namespace pedal;
 
     const float n_time = clamp01(getParam(apvts_, "time"));
@@ -66,7 +80,11 @@ pedal::ParamSet DelayPluginProcessor::buildParamsFromState() const {
     const float n_mdep = clamp01(getParam(apvts_, "moddep"));
 
     ParamSet ps;
-    ps.time    = map_param(n_time, get_param_range(current_mode_, ParamId::Time));
+    if (host_period_s > 0.0f) {
+        ps.time = juce::jlimit(0.002f, 2.5f, host_period_s);
+    } else {
+        ps.time = map_param(n_time, get_param_range(current_mode_, ParamId::Time));
+    }
     ps.repeats = map_param(n_rep, get_param_range(current_mode_, ParamId::Repeats));
     ps.mix     = map_param(n_mix, get_param_range(current_mode_, ParamId::Mix));
     ps.filter  = map_param(n_fil, get_param_range(current_mode_, ParamId::Filter));
@@ -100,7 +118,22 @@ void DelayPluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     }
 
     const bool bypassed = getParam(apvts_, "bypass") >= 0.5f;
-    const auto ps       = buildParamsFromState();
+
+    // Compute tempo-synced delay time when requested by the user.
+    float host_period_s = -1.0f;
+    if (getParam(apvts_, "tempo_sync") >= 0.5f) {
+        if (auto* ph = getPlayHead()) {
+            if (auto pos = ph->getPosition()) {
+                if (auto bpm = pos->getBpm()) {
+                    const int idx = juce::jlimit(0, kNumSubdivisions - 1,
+                        static_cast<int>(std::round(getParam(apvts_, "subdivision"))));
+                    host_period_s = static_cast<float>((60.0 / *bpm) * kSubdivisionFactors[idx]);
+                }
+            }
+        }
+    }
+
+    const auto ps = buildParamsFromState(host_period_s);
     active_mode_->Prepare(ps);
 
     auto* left  = buffer.getWritePointer(0);
@@ -191,6 +224,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout DelayPluginProcessor::create
 
     p.push_back(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID{"bypass", 1}, "Bypass", false));
+
+    p.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID{"tempo_sync", 1}, "Tempo Sync", false));
+
+    juce::StringArray subdivNames;
+    subdivNames.add("1/1");
+    subdivNames.add("1/2");
+    subdivNames.add("1/4.");
+    subdivNames.add("1/4");
+    subdivNames.add("1/8.");
+    subdivNames.add("1/8");
+    subdivNames.add("1/8T");
+    subdivNames.add("1/16");
+    p.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"subdivision", 1}, "Subdivision", subdivNames, 3)); // default: 1/4
 
     return {p.begin(), p.end()};
 }
