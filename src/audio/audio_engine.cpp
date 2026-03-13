@@ -86,7 +86,7 @@ void AudioEngine::ProcessBlock(AudioHandle::InputBuffer  in,
         mix_norm_             = (gain_sum > 1.0f) ? (1.0f / gain_sum) : 1.0f;
     }
 
-    if (mode != nullptr) {
+    if (mode != nullptr && !bypassed_) {
         mode->Prepare(params);
     }
 
