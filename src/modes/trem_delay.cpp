@@ -22,6 +22,7 @@ void TremDelay::Reset() {
 
 void TremDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
     filter_.SetKnob(params.filter);
 }
 
@@ -29,7 +30,7 @@ StereoFrame TremDelay::Process(float input, const ParamSet& params) {
     const float delay_samps = params.time * SAMPLE_RATE;
     trem_line.SetDelay(delay_samps);
 
-    const float lfo_val = lfo_.Process(); // -1..+1
+    const float lfo_val = lfo_out_;
 
     // gain = 1 - depth * (1 - lfo) / 2
     // At lfo=+1: gain = 1 (full amplitude)

@@ -20,6 +20,11 @@ private:
     // State-variable filter state
     float z1_ = 0.0f;
     float z2_ = 0.0f;
+
+    // Cached per-block values computed in Prepare()
+    float lfo_out_ = 0.0f;
+    float svf_f_   = 0.0f;
+    float svf_q_   = 2.0f;
 };
 
 } // namespace pedal

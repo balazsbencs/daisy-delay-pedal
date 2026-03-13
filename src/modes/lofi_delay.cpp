@@ -28,6 +28,7 @@ void LofiDelay::Reset() {
 
 void LofiDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
 
     // bits range: 16 (grit=0) down to 4 (grit=1)
     bits_ = 16 - static_cast<int>(params.grit * 12.0f);
@@ -39,7 +40,7 @@ void LofiDelay::Prepare(const ParamSet& params) {
 }
 
 StereoFrame LofiDelay::Process(float input, const ParamSet& params) {
-    const float lfo_val    = lfo_.Process(); // -1..+1
+    const float lfo_val    = lfo_out_;
     const float base_samps = params.time * SAMPLE_RATE;
     float delay_samps      = base_samps + lfo_val * (params.mod_dep * 20.0f);
     if (delay_samps < 1.0f) {

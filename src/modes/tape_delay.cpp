@@ -23,12 +23,13 @@ void TapeDelay::Reset() {
 
 void TapeDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
     filter_.SetKnob(params.filter);
     sat_.SetDrive(params.grit);
 }
 
 StereoFrame TapeDelay::Process(float input, const ParamSet& params) {
-    const float lfo_val = lfo_.Process(); // -1..+1
+    const float lfo_val = lfo_out_;
 
     // wow/flutter: max deviation = mod_dep * 50 samples
     const float flutter     = params.mod_dep * 50.0f;

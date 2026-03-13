@@ -20,6 +20,7 @@ private:
     ToneFilter filter_;
     Saturation sat_;
     DcBlocker  dc_;
+    float      lfo_out_ = 0.0f;
 };
 
 } // namespace pedal

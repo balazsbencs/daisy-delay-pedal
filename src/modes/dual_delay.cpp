@@ -30,6 +30,7 @@ void DualDelay::Reset() {
 
 void DualDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
     filter_l_.SetKnob(params.filter);
     filter_r_.SetKnob(params.filter);
 }
@@ -37,7 +38,7 @@ void DualDelay::Prepare(const ParamSet& params) {
 StereoFrame DualDelay::Process(float input, const ParamSet& params) {
     // Left: base delay time
     // Right: detuned by mod_dep and animated by mod_spd.
-    const float lfo_val = lfo_.Process(); // -1..+1
+    const float lfo_val = lfo_out_;
     const float delay_l = params.time * SAMPLE_RATE;
     const float detune_ratio = 1.0f
                              + params.mod_dep * (0.25f + 0.25f * (0.5f + 0.5f * lfo_val));

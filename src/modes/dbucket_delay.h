@@ -21,6 +21,7 @@ private:
 
     // Simple LCG for deterministic noise
     uint32_t noise_seed_ = 12345u;
+    float    lfo_out_    = 0.0f;
 
     float next_noise();
 };

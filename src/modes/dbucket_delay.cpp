@@ -33,6 +33,7 @@ void DbucketDelay::Reset() {
 
 void DbucketDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
     // BBDs progressively roll off HF per repeat; map grit to a lower filter knob
     // grit=0 -> knob=0.4 (gentle LP), grit=1 -> knob=0.1 (heavy LP)
     const float filter_knob = 0.4f - params.grit * 0.3f;
@@ -40,7 +41,7 @@ void DbucketDelay::Prepare(const ParamSet& params) {
 }
 
 StereoFrame DbucketDelay::Process(float input, const ParamSet& params) {
-    const float lfo_val     = lfo_.Process(); // -1..+1
+    const float lfo_val     = lfo_out_;
     const float base_samps  = params.time * SAMPLE_RATE;
     float delay_samps       = base_samps + lfo_val * (params.mod_dep * 20.0f);
     if (delay_samps < 1.0f) {

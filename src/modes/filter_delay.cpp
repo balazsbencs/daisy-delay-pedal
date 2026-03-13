@@ -25,35 +25,31 @@ void FilterDelay::Reset() {
 
 void FilterDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
+
+    // Move all block-stable and LFO-dependent computations here so
+    // Process() runs no transcendental functions per sample.
+    filter_line.SetDelay(params.time * SAMPLE_RATE);
+
+    float cutoff_hz = 400.0f + lfo_out_ * params.mod_dep * 2000.0f;
+    if (cutoff_hz < 40.0f)    cutoff_hz = 40.0f;
+    if (cutoff_hz > 10000.0f) cutoff_hz = 10000.0f;
+
+    svf_f_ = 2.0f * sinf(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
+    if (svf_f_ > 1.7f) svf_f_ = 1.7f;
+
+    // Damping q: 0 = self-oscillate, 2 = critically damped.
+    svf_q_ = 2.0f - params.mod_dep * 1.95f;
 }
 
 StereoFrame FilterDelay::Process(float input, const ParamSet& params) {
-    const float delay_samps = params.time * SAMPLE_RATE;
-    filter_line.SetDelay(delay_samps);
-
-    const float lfo_val = lfo_.Process(); // -1..+1
-
-    // Sweep cutoff: 200 Hz base + LFO * mod_dep * 2000 Hz
-    float cutoff_hz = 400.0f + lfo_val * params.mod_dep * 2000.0f;
-    if (cutoff_hz < 40.0f)           cutoff_hz = 40.0f;
-    if (cutoff_hz > 10000.0f)        cutoff_hz = 10000.0f;
-
-    // SVF coefficients
-    // f = 2 * sin(pi * cutoff / sr)  -- cheap approximation
-    float f = 2.0f * sinf(3.14159265f * cutoff_hz * INV_SAMPLE_RATE);
-    if (f > 1.7f) f = 1.7f; // Stability limit for Chamberlin SVF
-
-    // Damping q: 0 = self-oscillate, 2 = critically damped.
-    // Map mod_dep to increase resonance (decrease damping).
-    const float q = 2.0f - params.mod_dep * 1.95f;
-
     float wet = filter_line.Read();
 
-    // State-variable filter (Chamberlin)
-    const float hp = wet - q * z1_ - z2_;
-    const float bp = f * hp + z1_;
+    // State-variable filter (Chamberlin); coefficients set once per block in Prepare()
+    const float hp = wet - svf_q_ * z1_ - z2_;
+    const float bp = svf_f_ * hp + z1_;
     z1_            = bp;
-    const float lp = f * bp + z2_;
+    const float lp = svf_f_ * bp + z2_;
     z2_            = lp;
 
     // Output is low-pass

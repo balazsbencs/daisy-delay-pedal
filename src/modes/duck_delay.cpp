@@ -24,11 +24,12 @@ void DuckDelay::Reset() {
 
 void DuckDelay::Prepare(const ParamSet& params) {
     lfo_.SetRate(params.mod_spd);
+    lfo_out_ = lfo_.PrepareBlock();
     filter_.SetKnob(params.filter);
 }
 
 StereoFrame DuckDelay::Process(float input, const ParamSet& params) {
-    const float lfo_val    = lfo_.Process(); // -1..+1
+    const float lfo_val    = lfo_out_;
     const float base_samps = params.time * SAMPLE_RATE;
     float delay_samps      = base_samps + lfo_val * (params.mod_dep * 15.0f);
     if (delay_samps < 1.0f) {

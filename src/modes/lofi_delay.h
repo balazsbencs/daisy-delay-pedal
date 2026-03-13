@@ -16,6 +16,7 @@ public:
 private:
     Lfo       lfo_;
     DcBlocker dc_;
+    float     lfo_out_ = 0.0f;
 
     // Sample-rate reduction and bitcrush state
     float    held_sample_  = 0.0f;
