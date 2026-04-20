@@ -1,8 +1,7 @@
 #include "display_manager.h"
+#include "display_renderer.h"
+#include "display_colors.h"
 #include "display_layout.h"
-#include "../config/constants.h"
-
-using namespace daisy;
 
 namespace pedal {
 
@@ -11,16 +10,9 @@ namespace pedal {
 // ---------------------------------------------------------------------------
 
 void DisplayManager::Init() {
-    OledType::Config cfg;
-    // I2C_1 defaults to PB8 (SCL) / PB9 (SDA) on the Daisy Seed.
-    cfg.driver_config.transport_config.i2c_config.periph =
-        I2CHandle::Config::Peripheral::I2C_1;
-    cfg.driver_config.transport_config.i2c_address = OLED_I2C_ADDR;
-    oled_.Init(cfg);
-
-    oled_.Fill(false);
-    oled_.Update();
-    last_update_ms_ = 0;
+    driver_.Init();
+    DisplayRenderer::Clear(kColorBlack);
+    driver_.FillScreen(kColorBlack);  // push black frame synchronously at boot
 }
 
 // ---------------------------------------------------------------------------
@@ -35,15 +27,18 @@ void DisplayManager::Update(DelayModeId      mode,
                              bool             shift_layer_active,
                              PresetUiEvent    preset_event,
                              uint32_t         now_ms) {
-    if (now_ms - last_update_ms_ < DISPLAY_UPDATE_MS) {
+    (void)now_ms;  // rate limiting removed — DMA itself is the natural throttle
+    if (driver_.IsBusy()) {
         return;
     }
-    last_update_ms_ = now_ms;
     Render(mode, params, bypass, tempo, preset_slot, shift_layer_active, preset_event);
+    driver_.StartDmaTransfer(DisplayRenderer::FrameBuffer(),
+                             DisplayRenderer::FrameBufferBytes(),
+                             nullptr, nullptr);
 }
 
 // ---------------------------------------------------------------------------
-// Render
+// Render — writes the full 240×320 frame into the SDRAM buffer
 // ---------------------------------------------------------------------------
 
 void DisplayManager::Render(DelayModeId      mode,
@@ -53,126 +48,98 @@ void DisplayManager::Render(DelayModeId      mode,
                              int              preset_slot,
                              bool             shift_layer_active,
                              PresetUiEvent    preset_event) {
-    oled_.Fill(false);
+    const uint16_t accent = kModeColors[static_cast<int>(mode)];
 
-    // --- Mode name (large font, top-left) ---
-    oled_.SetCursor(layout::MODE_X, layout::MODE_Y);
-    oled_.WriteString(ModeName(mode), Font_11x18, true);
+    DisplayRenderer::Clear(kColorBlack);
 
-    // --- Bypass indicator (top-right) ---
-    oled_.SetCursor(layout::BYPASS_X, layout::BYPASS_Y);
-    oled_.WriteString(bypass.IsActive() ? "ON" : "BY", Font_7x10, true);
-
-    // --- Active preset slot (top-right) ---
-    char slot_label[6] = {'P', static_cast<char>('1' + (preset_slot % 8)), 0, 0, 0, 0};
-    oled_.SetCursor(114, 11);
-    oled_.WriteString(slot_label, Font_6x8, true);
-
-    // --- Horizontal separator ---
-    oled_.DrawLine(0, layout::SEP_Y, layout::SCREEN_W - 1, layout::SEP_Y, true);
-
-    // --- Row 1 labels: Time | Repeats | Mix ---
-    oled_.SetCursor(0,  layout::PARAM_ROW1_Y);
-    oled_.WriteString("Tm", Font_6x8, true);
-    oled_.SetCursor(43, layout::PARAM_ROW1_Y);
-    oled_.WriteString("Rp", Font_6x8, true);
-    oled_.SetCursor(86, layout::PARAM_ROW1_Y);
-    oled_.WriteString("Mx", Font_6x8, true);
-
-    // --- Row 1 bars (width 38 px each) ---
-    // time: 0..3 s → normalise to [0,1]
-    DrawParamBar(0,  layout::BAR_Y1_TOP, 38, params.time / 3.0f);
-    // repeats: 0..0.98 → normalise to [0,1]
-    DrawParamBar(43, layout::BAR_Y1_TOP, 38, params.repeats / 0.98f);
-    // mix: already [0,1]
-    DrawParamBar(86, layout::BAR_Y1_TOP, 38, params.mix);
-
-    // --- Row 2 labels: Filter | Grit | ModSpd | ModDep ---
-    oled_.SetCursor(0,  layout::PARAM_ROW2_Y);
-    oled_.WriteString("Fi", Font_6x8, true);
-    oled_.SetCursor(32, layout::PARAM_ROW2_Y);
-    oled_.WriteString("Gr", Font_6x8, true);
-    oled_.SetCursor(64, layout::PARAM_ROW2_Y);
-    oled_.WriteString("MS", Font_6x8, true);
-    oled_.SetCursor(96, layout::PARAM_ROW2_Y);
-    oled_.WriteString("MD", Font_6x8, true);
-
-    // --- Row 2 bars (width 28 px each) ---
-    // filter: [0,1]
-    DrawParamBar(0,  layout::BAR_Y2_TOP, 28, params.filter);
-    // grit: [0,1]
-    DrawParamBar(32, layout::BAR_Y2_TOP, 28, params.grit);
-    // mod_spd: 0.05..10 Hz → normalise to [0,1]
-    DrawParamBar(64, layout::BAR_Y2_TOP, 28, params.mod_spd / 10.0f);
-    // mod_dep: [0,1]
-    DrawParamBar(96, layout::BAR_Y2_TOP, 28, params.mod_dep);
-
-    // --- Tempo source label (bottom-left) ---
-    oled_.SetCursor(layout::TEMPO_X, layout::TEMPO_Y);
-    if (tempo.HasMidiClock()) {
-        oled_.WriteString("MIDI", Font_6x8, true);
-    } else if (tempo.HasTap()) {
-        oled_.WriteString("TAP", Font_6x8, true);
-    }
-
-    // --- Shift-layer and preset feedback ---
+    // --- Header: inverted when shift is active ---
+    const uint16_t hdr_bg   = shift_layer_active ? accent      : kColorBlack;
+    const uint16_t hdr_fg   = shift_layer_active ? kColorBlack : accent;
+    const uint16_t hdr_aux  = shift_layer_active ? kColorBlack : kColorWhite;
     if (shift_layer_active) {
-        oled_.SetCursor(88, layout::TEMPO_Y);
-        oled_.WriteString("SHF", Font_6x8, true);
+        DisplayRenderer::FillRect(0, 0, layout::SCREEN_W, layout::HEADER_H, accent);
     }
+
+    DisplayRenderer::DrawText(layout::MODE_X, layout::MODE_Y,
+                              ModeName(mode), hdr_fg, hdr_bg, Font_11x18);
+
+    DisplayRenderer::DrawText(layout::BYPASS_X, layout::BYPASS_Y,
+                              bypass.IsActive() ? "ON" : "BY",
+                              hdr_aux, hdr_bg, Font_7x10);
+
+    char slot_label[3] = {'P', static_cast<char>('1' + (preset_slot % 8)), 0};
+    DisplayRenderer::DrawText(layout::SLOT_X, layout::SLOT_Y,
+                              slot_label, hdr_aux, hdr_bg, Font_6x8);
+
+    // --- Separators ---
+    DisplayRenderer::HLine(0, layout::SEP1_Y, layout::SCREEN_W, kColorWhite);
+    DisplayRenderer::HLine(0, layout::SEP2_Y, layout::SCREEN_W, kColorWhite);
+
+    // --- 7 parameter rows ---
+    static const char* kLabels[7] = {
+        "TIME", "REPEATS", "MIX", "FILTER", "GRIT", "MOD SPEED", "MOD DEPTH"
+    };
+    const float kBarVals[7] = {
+        params.time    / 2.5f,
+        params.repeats / 0.98f,
+        params.mix,
+        params.filter,
+        params.grit,
+        params.mod_spd / 10.0f,
+        params.mod_dep,
+    };
+
+    for (int i = 0; i < 7; ++i) {
+        const uint16_t row_y = static_cast<uint16_t>(
+            layout::PARAM_AREA_Y + static_cast<uint16_t>(i) * layout::PARAM_ROW_H);
+
+        DisplayRenderer::DrawText(layout::LABEL_X,
+                                  row_y + layout::LABEL_OFFSET_Y,
+                                  kLabels[i], kColorWhite, kColorBlack, Font_6x8);
+
+        DisplayRenderer::DrawBar(layout::BAR_X,
+                                 row_y + layout::BAR_OFFSET_Y,
+                                 layout::BAR_W,
+                                 layout::BAR_H,
+                                 kBarVals[i], accent);
+    }
+
+    // --- Status row: tempo source ---
+    if (tempo.HasMidiClock()) {
+        DisplayRenderer::DrawText(layout::TEMPO_X, layout::TEMPO_Y,
+                                  "MIDI", kColorWhite, kColorBlack, Font_6x8);
+    } else if (tempo.HasTap()) {
+        DisplayRenderer::DrawText(layout::TEMPO_X, layout::TEMPO_Y,
+                                  "TAP", kColorWhite, kColorBlack, Font_6x8);
+    }
+
+    // --- Status row: preset event ---
     if (preset_event == PresetUiEvent::Loaded) {
-        oled_.SetCursor(48, layout::MODE_Y);
-        oled_.WriteString("LOAD", Font_6x8, true);
+        DisplayRenderer::DrawText(layout::PRESET_EVENT_X, layout::PRESET_EVENT_Y,
+                                  "LOAD", kColorWhite, kColorBlack, Font_6x8);
     } else if (preset_event == PresetUiEvent::Saved) {
-        oled_.SetCursor(48, layout::MODE_Y);
-        oled_.WriteString("SAVE", Font_6x8, true);
-    }
-
-    oled_.Update();
-}
-
-// ---------------------------------------------------------------------------
-// DrawParamBar
-// ---------------------------------------------------------------------------
-
-void DisplayManager::DrawParamBar(uint8_t x, uint8_t y, uint8_t w, float val) {
-    // Clamp to [0, 1] to guard against parameter normalisation overshoots.
-    if (val < 0.0f) { val = 0.0f; }
-    if (val > 1.0f) { val = 1.0f; }
-
-    // Outline rectangle.
-    oled_.DrawRect(x, y, x + w, y + layout::BAR_H, true, false);
-
-    // Interior fill — leave 1-pixel border on all sides.
-    const uint8_t inner_w    = static_cast<uint8_t>(w > 2u ? w - 2u : 0u);
-    const uint8_t fill_width = static_cast<uint8_t>(val * static_cast<float>(inner_w));
-    if (fill_width > 0) {
-        oled_.DrawRect(x + 1u,
-                       y + 1u,
-                       x + 1u + fill_width,
-                       y + layout::BAR_H - 1u,
-                       true,
-                       true);
+        DisplayRenderer::DrawText(layout::PRESET_EVENT_X, layout::PRESET_EVENT_Y,
+                                  "SAVE", kColorWhite, kColorBlack, Font_6x8);
     }
 }
 
 // ---------------------------------------------------------------------------
-// ModeName
+// ModeName — full names now that we have 240 px width
 // ---------------------------------------------------------------------------
 
 const char* DisplayManager::ModeName(DelayModeId id) {
     switch (id) {
         case DelayModeId::Duck:    return "Duck";
-        case DelayModeId::Swell:   return "Swll";
+        case DelayModeId::Swell:   return "Swell";
         case DelayModeId::Trem:    return "Trem";
-        case DelayModeId::Digital: return "Digi";
-        case DelayModeId::Dbucket: return "BBD";
+        case DelayModeId::Digital: return "Digital";
+        case DelayModeId::Dbucket: return "BBucket";
         case DelayModeId::Tape:    return "Tape";
         case DelayModeId::Dual:    return "Dual";
-        case DelayModeId::Pattern: return "Patt";
-        case DelayModeId::Filter:  return "Filt";
+        case DelayModeId::Pattern: return "Pattern";
+        case DelayModeId::Filter:  return "Filter";
         case DelayModeId::Lofi:    return "LoFi";
-        default:                   return "????";
+        default:                   return "?";
     }
 }
 

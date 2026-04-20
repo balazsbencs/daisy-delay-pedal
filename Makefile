@@ -25,6 +25,8 @@ CPP_SOURCES = \
     src/modes/lofi_delay.cpp \
     src/modes/mode_registry.cpp \
     src/midi/midi_handler.cpp \
+    src/display/st7789_driver.cpp \
+    src/display/display_renderer.cpp \
     src/display/display_manager.cpp \
     src/presets/preset_manager.cpp \
     src/tempo/tap_tempo.cpp \

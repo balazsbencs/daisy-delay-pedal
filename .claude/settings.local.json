@@ -27,7 +27,9 @@
       "WebFetch(domain:equipboard.com)",
       "WebFetch(domain:www.bhphotovideo.com)",
       "WebFetch(domain:www.premierguitar.com)",
-      "WebFetch(domain:cdn.strymon.net)"
+      "WebFetch(domain:cdn.strymon.net)",
+      "Bash(arm-none-eabi-size build/delay.elf)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

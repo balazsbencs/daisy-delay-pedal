@@ -57,7 +57,7 @@ static void InitDefaultParamNorm(ParamEditState& st) {
     st.norm[2] = 0.5f;
     st.norm[3] = 0.5f;
     st.norm[4] = 0.0f;
-    st.norm[5] = 0.5f;
+    st.norm[5] = 0.0f;
     st.norm[6] = 0.0f;
 }
 
@@ -187,7 +187,8 @@ int main() {
                 }
                 preset_manager.SetActiveSlot(slot);
             } else {
-                int idx = static_cast<int>(current_mode) + ctrl.mode_encoder_increment;
+                const int dir = (ctrl.mode_encoder_increment > 0) ? 1 : -1;
+                int idx = static_cast<int>(current_mode) + dir;
                 if (idx < 0) {
                     idx = pedal::NUM_MODES - 1;
                 }

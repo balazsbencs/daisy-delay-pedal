@@ -3,14 +3,6 @@
 
 namespace pedal {
 namespace pins {
-// ADC pots (index = ADC channel)
-constexpr int POT_TIME    = 0;
-constexpr int POT_REPEATS = 1;
-constexpr int POT_MIX     = 2;
-constexpr int POT_FILTER  = 3;
-constexpr int POT_GRIT    = 4;
-constexpr int POT_MOD_SPD = 5;
-constexpr int POT_MOD_DEP = 6;
 // GPIO
 constexpr daisy::Pin ENC_A      = daisy::seed::D0;
 constexpr daisy::Pin ENC_B      = daisy::seed::D1;
@@ -27,5 +19,12 @@ constexpr daisy::Pin SW_BYPASS  = daisy::seed::D3;
 constexpr daisy::Pin SW_TAP     = daisy::seed::D4;
 constexpr daisy::Pin RELAY      = daisy::seed::D5;
 constexpr daisy::Pin LED_BYPASS = daisy::seed::D6;
+// ST7789 SPI display
+constexpr daisy::Pin DISP_SCK = daisy::seed::D22;  // PA5  SPI1_SCK
+constexpr daisy::Pin DISP_SDA = daisy::seed::D18;  // PA7  SPI1_MOSI
+constexpr daisy::Pin DISP_CS  = daisy::seed::D13;  // PB6
+constexpr daisy::Pin DISP_DC  = daisy::seed::D14;  // PB7
+constexpr daisy::Pin DISP_RES = daisy::seed::D26;  // PD11
+constexpr daisy::Pin DISP_BLK = daisy::seed::D24;  // PA1
 } // namespace pins
 } // namespace pedal
