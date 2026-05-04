@@ -2,6 +2,7 @@
 #include "display_renderer.h"
 #include "display_colors.h"
 #include "display_layout.h"
+#include "../params/param_map.h"
 
 namespace pedal {
 
@@ -80,12 +81,12 @@ void DisplayManager::Render(DelayModeId      mode,
         "TIME", "REPEATS", "MIX", "FILTER", "GRIT", "MOD SPEED", "MOD DEPTH"
     };
     const float kBarVals[7] = {
-        params.time    / 2.5f,
-        params.repeats / 0.98f,
+        unmap_param(params.time,    get_param_range(mode, ParamId::Time)),
+        unmap_param(params.repeats, default_ranges::REPEATS),
         params.mix,
         params.filter,
         params.grit,
-        params.mod_spd / 10.0f,
+        unmap_param(params.mod_spd, default_ranges::MOD_SPD),
         params.mod_dep,
     };
 
